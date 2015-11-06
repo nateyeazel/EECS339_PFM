@@ -2,12 +2,17 @@
 
 #
 #
-# rwb.pl (Red, White, and Blue)
+# pfm.pl (Red, White, and Blue)
 #
 #
 # Example code for EECS 339, Northwestern University
 #
 # Peter Dinda
+#
+#
+# Modified for Project 2
+# Nicholas Hall, Nathan Yeazel, and Christopher Pierce
+#
 #
 
 # The overall theory of operation of this script is as follows
@@ -77,25 +82,25 @@ use Time::ParseDate;
 #
 # You need to override these for access to your database
 #
-my $dbuser="cjp794";
-my $dbpasswd="zlxPge42Z";
+my $dbuser="ndh242";
+my $dbpasswd="zo06aFIky";
 
 
 #
 # The session cookie will contain the user's name and password so that
 # he doesn't have to type it again and again.
 #
-# "RWBSession"=>"user/password"
+# "PFMSession"=>"user/password"
 #
 # BOTH ARE UNENCRYPTED AND THE SCRIPT IS ALLOWED TO BE RUN OVER HTTP
 # THIS IS FOR ILLUSTRATION PURPOSES.  IN REALITY YOU WOULD ENCRYPT THE COOKIE
 # AND CONSIDER SUPPORTING ONLY HTTPS
 #
-my $cookiename="RWBSession";
+my $cookiename="PFMSession";
 #
 # And another cookie to preserve the debug state
 #
-my $debugcookiename="RWBDebug";
+my $debugcookiename="PFMDebug";
 
 #
 # Get the session input and debug cookies, if any
@@ -162,8 +167,9 @@ if (defined($inputcookiecontent)) {
     ($user,$password) = split(/\//,$inputcookiecontent);
     $outputcookiecontent = $inputcookiecontent;
 } else {
-    # No cookie, treat as anonymous user
-    ($user,$password) = ("anon","anonanon");
+    # No cookie, direct to login page
+    $action="login";
+    $run = 0;
 }
 
 #
@@ -201,7 +207,6 @@ if ($action eq "login") {
         # we were given
         #
         undef $inputcookiecontent;
-        ($user,$password)=("anon","anonanon");
     }
 }
 
@@ -1195,7 +1200,7 @@ sub RevokeUserPerm {
 sub ValidUser {
     my ($user,$password)=@_;
     my @col;
-    eval {@col=ExecSQL($dbuser,$dbpasswd, "select count(*) from rwb_users where name=? and password=?","COL",$user,$password);};
+    eval {@col=ExecSQL($dbuser,$dbpasswd, "select count(*) from pfm_users where name=? and password=?","COL",$user,$password);};
     if ($@) {
         return 0;
     } else {

@@ -1,15 +1,15 @@
-create table users(
+create table pfm_users(
 user_name varchar2(64) not null primary key,
 password varchar2(64) not null, 
 );
-create table portfolios(
+create table pfm_portfolios(
 portfolio_id number not null,
 user_name varchar2(64) not null references users.user_id,
 portfolio_name varchar2(64) not null,
 cash number, 
 primary key(portfolio_id, user_id)
 );
-create table portfolioHoldings(
+create table pfm_portfolioHoldings(
 	portfolio_id number not null references portfolio.portfolio_id,
 	symbol varchar2(16) not null references stocks.symbol,
 	num_shares number not null,
@@ -17,10 +17,10 @@ create table portfolioHoldings(
 	purchase_price number not null,
 	primary key(portfolio_id, symbol)
 );
-create table stocks(
+create table pfm_stocks(
 	symbol varchar2(16) not null primary key
 );
-create table stocksData(
+create table pfm_stocksData(
 	symbol varchar2(8) not null references stocks.symbol,
 	timestamp number not null,
 	high number not null,
@@ -30,7 +30,7 @@ create table stocksData(
 	volume number not null,
     primary key(symbol, timestamp)
 );
-create table portfolioStats(
+create table pfm_portfolioStats(
 portfolio_id number not null primary key references portfolio.portfolio_id,
 statistic number not null
 );

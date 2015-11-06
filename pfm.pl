@@ -159,7 +159,7 @@ $outputdebugcookiecontent=$debug;
 
 #
 #
-# Who is this?  Use the cookie or anonymous credentials
+# Who is this?  Use the cookie or send to login page
 #
 #
 if (defined($inputcookiecontent)) {
@@ -169,7 +169,9 @@ if (defined($inputcookiecontent)) {
 } else {
     # No cookie, direct to login page
     $action="login";
-    $run = 0;
+    if (!defined(param("user"))){
+        $run=0;
+    }
 }
 
 #
@@ -185,6 +187,14 @@ if ($action eq "login") {
         # generate the right output cookie, if any.
         #
         ($user,$password) = (param('user'),param('password'));
+        if (NewUser($user)) {
+            my $error=UserAdd($user,$password);
+            if ($error) {
+                $logincomplain=2;
+                $action="login";
+                $run = 0;
+            }
+        }
         if (ValidUser($user,$password)) {
             # if the user's info is OK, then give him a cookie
             # that contains his username and password
@@ -217,10 +227,8 @@ if ($action eq "login") {
 #
 if ($action eq "logout") {
     $deletecookie=1;
-    $action = "base";
-    $user = "anon";
-    $password = "anonanon";
-    $run = 1;
+    $action = "login";
+    $run = 0;
 }
 
 
@@ -300,18 +308,18 @@ print "<center>" if !$debug;
 #
 #
 if ($action eq "login") {
-    if ($logincomplain) {
-        print "Login failed.  Try again.<p>"
-    }
     if ($logincomplain or !$run) {
         print start_form(-name=>'Login'),
-        h2('Login to Portfolio Manager 2K15'),
-        "Name:",textfield(-name=>'user'), p,
-        "Password:",password_field(-name=>'password'),p,
+        h2('Sign in to Portfolio Manager 2K15'),
+        "Name ",textfield(-name=>'user'), p,
+        "Password ",password_field(-name=>'password'),p,
         hidden(-name=>'act',default=>['login']),
         hidden(-name=>'run',default=>['1']),
         submit,
         end_form;
+    }
+    if ($logincomplain) {
+        print "Invalid username/password combination.<p>"
     }
 }
 
@@ -325,10 +333,12 @@ if ($action eq "login") {
 #
 #
 if ($action eq "base") {
-    #
-    # And a div to populate with info about nearby stuff
-    #
-    #
+    
+    # Header
+    print h2('Portfolio Manager 2K15'),
+    "Welcome $user\!\t",
+    "<a href=\"pfm.pl?act=logout&run=1\">Log Out</a></p>";
+    
     if ($debug) {
         # visible if we are debugging
         print "<div id=\"data\" style=\:width:100\%; height:10\%\"></div>";
@@ -341,55 +351,8 @@ if ($action eq "base") {
     # height=1024 width=1024 id=\"info\" name=\"info\" onload=\"UpdateMap()\"></iframe>";
     
     
-    #
-    # User mods
-    #
-    #
-    print "<p>You are logged in as $user and can do the following:</p>";
-    print "<p><a href=\"pfm.pl?act=logout&run=1\">Logout</a></p>";
-    
-}
 
-#
-# ADD-USER
-#
-# User Add functionaltiy
-#
-#
-#
-#
-if ($action eq "add-user") {
-    if (!UserCan($user,"add-users") && !UserCan($user,"manage-users")) {
-        print h2('You do not have the required permissions to add users.');
-    } else {
-        if (!$run) {
-            print start_form(-name=>'AddUser'),
-            h2('Add User'),
-            "Name: ", textfield(-name=>'name'),
-            p,
-            "Email: ", textfield(-name=>'email'),
-            p,
-            "Password: ", textfield(-name=>'password'),
-            p,
-            hidden(-name=>'run',-default=>['1']),
-            hidden(-name=>'act',-default=>['add-user']),
-            submit,
-            end_form,
-            hr;
-        } else {
-            my $name=param('name');
-            my $email=param('email');
-            my $password=param('password');
-            my $error;
-            $error=UserAdd($name,$password,$email,$user);
-            if ($error) {
-                print "Can't add user because: $error";
-            } else {
-                print "Added user $name $email as referred by $user\n";
-            }
-        }
-    }
-    print "<p><a href=\"pfm.pl?act=base&run=1\">Return</a></p>";
+    
 }
 
 #
@@ -486,29 +449,29 @@ print end_html;
 
 #
 # Add a user
-# call with name,password,email
+# call with user_name,password
 #
 # returns false on success, error string on failure.
 #
-# UserAdd($name,$password,$email)
+# UserAdd($user_name,$password)
 #
 sub UserAdd {
     eval { ExecSQL($dbuser,$dbpasswd,
-        "insert into pfm_users (name,password,email,referer) values (?,?,?,?)",undef,@_);};
+        "insert into pfm_users(user_name,password) values (?,?)",undef,@_);};
     return $@;
 }
 
 #
 #
-# Check to see if user and password combination exist
+# Check to see if user_name and password combination exist
 #
-# $ok = ValidUser($user,$password)
+# $ok = ValidUser($user_name,$password)
 #
 #
 sub ValidUser {
-    my ($user,$password)=@_;
+    my ($user_name,$password)=@_;
     my @col;
-    eval {@col=ExecSQL($dbuser,$dbpasswd, "select count(*) from pfm_users where name=? and password=?","COL",$user,$password);};
+    eval {@col=ExecSQL($dbuser,$dbpasswd, "select count(*) from pfm_users where user_name=? and password=?","COL",$user_name,$password);};
     if ($@) {
         return 0;
     } else {
@@ -516,6 +479,23 @@ sub ValidUser {
     }
 }
 
+#
+#
+# Check to see if user_name is new
+#
+# $ok = NewUser($user_name)
+#
+#
+sub NewUser {
+    my ($user_name)=@_;
+    my @col;
+    eval {@col=ExecSQL($dbuser,$dbpasswd, "select count(*) from pfm_users where user_name=?","COL",$user_name);};
+    if ($@) {
+        return 0;
+    } else {
+        return $col[0]==0;
+    }
+}
 
 #
 # Given a list of scalars, or a list of references to lists, generates

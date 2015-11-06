@@ -1,13 +1,14 @@
 create table pfm_users(
-user_name varchar2(64) not null primary key,
-password varchar2(64) not null, 
+    user_name varchar2(64) not null primary key,
+    password varchar2(64) not null,
+        constraint passwd_length check (password like '______%')
 );
 create table pfm_portfolios(
-portfolio_id number not null,
-user_name varchar2(64) not null references users.user_id,
-portfolio_name varchar2(64) not null,
-cash number, 
-primary key(portfolio_id, user_id)
+    portfolio_id number not null,
+    user_name varchar2(64) not null references users.user_id,
+    portfolio_name varchar2(64) not null,
+    cash number,
+    primary key(portfolio_id, user_id)
 );
 create table pfm_portfolioHoldings(
 	portfolio_id number not null references portfolio.portfolio_id,

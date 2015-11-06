@@ -262,10 +262,10 @@ print header(-expires=>'now', -cookie=>\@outputcookies);
 # Now we finally begin generating back HTML
 #
 #
-#print start_html('Red, White, and Blue');
+#print start_html('Portforlio Manager 2K15');
 print "<html style=\"height: 100\%\">";
 print "<head>";
-print "<title>Red, White, and Blue</title>";
+print "<title>Portforlio Manager 2K15</title>";
 print "</head>";
 
 print "<body style=\"height:100\%;margin:0\">";
@@ -278,7 +278,7 @@ print "<body style=\"height:100\%;margin:0\">";
 # This tells the web browser to render the page in the style
 # defined in the css file
 #
-print "<style type=\"text/css\">\n\@import \"rwb.css\";\n</style>\n";
+print "<style type=\"text/css\">\n\@import \"pfm.css\";\n</style>\n";
 
 
 print "<center>" if !$debug;
@@ -305,7 +305,7 @@ if ($action eq "login") {
     }
     if ($logincomplain or !$run) {
         print start_form(-name=>'Login'),
-        h2('Login to Red, White, and Blue'),
+        h2('Login to Portfolio Manager 2K15'),
         "Name:",textfield(-name=>'user'), p,
         "Password:",password_field(-name=>'password'),p,
         hidden(-name=>'act',default=>['login']),
@@ -326,72 +326,6 @@ if ($action eq "login") {
 #
 if ($action eq "base") {
     #
-    # Google maps API, needed to draw the map
-    #
-    print "<script src=\"http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js\" type=\"text/javascript\"></script>";
-    print "<script src=\"http://maps.google.com/maps/api/js?sensor=false\" type=\"text/javascript\"></script>";
-    
-    #
-    # The Javascript portion of our app
-    #
-    print "<script type=\"text/javascript\" src=\"rwb.js\"> </script>";
-    
-    
-    
-    #
-    #
-    # And something to color (Red, White, or Blue)
-    #
-    print "<div id=\"color\" style=\"width:100\%; height:10\%\"></div>";
-    
-    #
-    #
-    # And a map which will be populated later
-    #
-    print "<div id=\"map\" style=\"width:100\%; height:80\%\"></div>";
-    
-    # my @cyclesData;
-    #my @cycles;
-    #eval{
-    #@cyclesData = ExecSQL($dbuser, $dbpasswd, "select distinct cycle from cs339.committee_master;");
-    #};
-    # if($@){
-    #   @cycles = [];
-    # }
-    # else{
-    # @cycles = MakeRaw("cycles_data", "2d", @cyclesData);
-    # };
-    my ($test, $err)=Cycles();
-    my @cyclesArray;
-    while ($test =~ /(\d+)/g){
-        push(@cyclesArray, $1);
-        #print $1;
-    }
-    #print @cyclesArray;
-    if (UserCan($user, 'query-opinion-data'))
-    {print start_form(-name=>'Test'),
-        
-        p,
-        "Data Type", checkbox_group(-name=>'data_type',-values=>['candidates', 'individuals', 'committees', 'opinions']),
-        p,
-        "Which Cycle?",
-        checkbox_group(-name=>'cycles',
-        -values=> \@cyclesArray),
-        end_form,
-        hr;
-    }
-    else {
-        print start_form(-name=>'Test'),
-        p,
-        "Data Type", checkbox_group(-name=>'data_type',-values=>['candidates', 'individuals', 'committees']),
-        p,
-        "Which Cycle?",
-        checkbox_group(-name=>'cycles',
-        -values=> \@cyclesArray),
-        end_form,
-        hr;
-    }
-    #
     # And a div to populate with info about nearby stuff
     #
     #
@@ -411,183 +345,9 @@ if ($action eq "base") {
     # User mods
     #
     #
-    if ($user eq "anon") {
-        print "<p>You are anonymous, but you can also <a href=\"rwb.pl?act=login\">login</a></p>";
-    } else {
-        print "<p>You are logged in as $user and can do the following:</p>";
-        if (UserCan($user,"give-opinion-data")) {
-            print "<p><a href=\"rwb.pl?act=give-opinion-data\">Give Opinion Of Current Location</a></p>";
-        }
-        if (UserCan($user,"give-cs-ind-data")) {
-            print "<p><a href=\"rwb.pl?act=give-cs-ind-data\">Geolocate Individual Contributors</a></p>";
-        }
-        if (UserCan($user,"manage-users") || UserCan($user,"invite-users")) {
-            print "<p><a href=\"rwb.pl?act=invite-user\">Invite User</a></p>";
-        }
-        if (UserCan($user,"manage-users") || UserCan($user,"add-users")) {
-            print "<p><a href=\"rwb.pl?act=add-user\">Add User</a></p>";
-        }
-        if (UserCan($user,"manage-users")) {
-            print "<p><a href=\"rwb.pl?act=delete-user\">Delete User</a></p>";
-            print "<p><a href=\"rwb.pl?act=add-perm-user\">Add User Permission</a></p>";
-            print "<p><a href=\"rwb.pl?act=revoke-perm-user\">Revoke User Permission</a></p>";
-        }
-        print "<p><a href=\"rwb.pl?act=logout&run=1\">Logout</a></p>";
-    }
+    print "<p>You are logged in as $user and can do the following:</p>";
+    print "<p><a href=\"pfm.pl?act=logout&run=1\">Logout</a></p>";
     
-}
-
-#
-#
-# NEAR
-#
-#
-# Nearby committees, candidates, individuals, and opinions
-#
-#
-# Note that the individual data should integrate the FEC data and the more
-# precise crowd-sourced location data.   The opinion data is completely crowd-sourced
-#
-# This form intentionally avoids decoration since the expectation is that
-# the client-side javascript will invoke it to get raw data for overlaying on the map
-#
-#
-if ($action eq "near") {
-    my $latne = param("latne");
-    my $longne = param("longne");
-    my $latsw = param("latsw");
-    my $longsw = param("longsw");
-    my $whatparam = param("what");
-    my $format = param("format");
-    my $cycle = param("cycle");
-    my %what;
-    
-    $format = "table" if !defined($format);
-    #$cycle = "1112" if !defined($cycle);
-    
-    if (!defined($whatparam) || $whatparam eq "all") {
-        %what = ( committees => 1,
-        candidates => 1,
-        individuals =>1,
-        opinions => 1);
-    } else {
-        map {$what{$_}=1} split(/\s*,\s*/,$whatparam);
-    }
-    
-    
-    if ($what{committees}) {
-        my ($str,$error) = Committees($latne,$longne,$latsw,$longsw,$cycle,$format);
-        if (!$error) {
-            if ($format eq "table") {
-                print "<h2>Nearby committees</h2>$str";
-            } else {
-                print $str;
-            }
-        }
-        # $dem = 'dem';
-        # $rep = 'rep';
-        # my($demCons, $error) = CommitteesSum($latne, $longne, $latsw, $longsw, $cycle, $format, $dem);
-        # my($repCons, $error) = CommitteesSum($latne, $longne, $latsw, $longsw, $cycle, $format, $rep);
-        
-        
-        
-    }
-    if ($what{candidates}) {
-        my ($str,$error) = Candidates($latne,$longne,$latsw,$longsw,$cycle,$format);
-        if (!$error) {
-            if ($format eq "table") {
-                print "<h2>Nearby candidates</h2>$str";
-            } else {
-                print $str;
-            }
-        }
-    }
-    if ($what{individuals}) {
-        my ($str,$error) = Individuals($latne,$longne,$latsw,$longsw,$cycle,$format);
-        if (!$error) {
-            if ($format eq "table") {
-                print "<h2>Nearby individuals</h2>$str";
-            } else {
-                print $str;
-            }
-        }
-    }
-    if ($what{opinions}) {
-        my ($str,$error) = Opinions($latne,$longne,$latsw,$longsw,$cycle,$format);
-        my ($avg, $error1) = OpinionAverage($latne, $longne, $latsw, $longsw);
-        my ($stddev, $error2) = OpinionStdev($latne, $longne, $latsw, $longsw);
-        if (!$error) {
-            if ($format eq "table") {
-                print "<h2>Nearby opinions</h2>$str";
-            } else {
-                print $str;
-                print "<p id='opinionaverage'>average political opinion $avg</p>";
-                print "<p id='opinionstd'>standard deviation $stddev</p>";
-            }
-        }
-    }
-}
-
-
-if ($action eq "invite-user") {
-    if (!UserCan($user,"invite-users") ) {
-        print h2('You do not have the required permissions to invite a user.');
-    } else {
-        if (!$run) {
-            #
-            # Generate the invite form.
-            #
-            print start_form(-name=>'InviteUser'),
-            h2('Invite User'),
-            "Email: ", textfield(-name=>'email'),
-            p,
-            hidden(-name=>'run',-default=>['1']),
-            hidden(-name=>'act',-default=>['invite-user']),
-            submit,
-            end_form,
-            hr;
-        } else {
-            my $email=param('email');
-            my $error=UserInvite($email);
-            if ($error) {
-                print "Can't invite user because: $error";
-            } else {
-                print "Invited user $email\n";
-            }
-        }
-    }
-    print "<p><a href=\"rwb.pl?act=base&run=1\">Return</a></p>";
-}
-if ($action eq "give-opinion-data") {
-    
-    if(UserCan($user,"give-opinion-data")){
-        print "<script src=\"http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js\" type=\"text/javascript\"></script>";
-        print "<script src=\"http://maps.google.com/maps/api/js?sensor=false\" type=\"text/javascript\"></script>";
-        print "<script type=\"text/javascript\" src=\"rwb.js\"> </script>";
-        print start_form(-name=>'Test'),
-        h2('Give Opinion Data'),
-        p,
-        "How would you rate the political landscape?", popup_menu(-name=>'redWhiteBlue',-values=>['red', 'white', 'blue']),
-        end_form,
-        hr;
-        print '<button onclick="submitOpinion()">Submit</button>';
-        if (defined(param("submit")) && param("submit")) {
-            print "Submitted Successfully";
-        }
-    }
-}
-if ($action eq "submit-opinion"){
-    my $color = param("color");
-    my $lat = param("latitude");
-    my $lng = param("longitude");
-    my $error=addOpinion($user, $color, $lat, $lng);
-    if ($error){
-        print $error;}
-    print h2("Data submitted hit back button to go back");
-}
-
-if ($action eq "give-cs-ind-data") {
-    print h2("Giving Crowd-sourced Individual Geolocations Is Unimplemented");
 }
 
 #
@@ -629,138 +389,7 @@ if ($action eq "add-user") {
             }
         }
     }
-    print "<p><a href=\"rwb.pl?act=base&run=1\">Return</a></p>";
-}
-
-#
-# DELETE-USER
-#
-# User Delete functionaltiy
-#
-#
-#
-#
-if ($action eq "delete-user") {
-    if (!UserCan($user,"manage-users")) {
-        print h2('You do not have the required permissions to delete users.');
-    } else {
-        if (!$run) {
-            #
-            # Generate the add form.
-            #
-            print start_form(-name=>'DeleteUser'),
-            h2('Delete User'),
-            "Name: ", textfield(-name=>'name'),
-            p,
-            hidden(-name=>'run',-default=>['1']),
-            hidden(-name=>'act',-default=>['delete-user']),
-            submit,
-            end_form,
-            hr;
-        } else {
-            my $name=param('name');
-            my $error;
-            $error=UserDel($name);
-            if ($error) {
-                print "Can't delete user because: $error";
-            } else {
-                print "Deleted user $name\n";
-            }
-        }
-    }
-    print "<p><a href=\"rwb.pl?act=base&run=1\">Return</a></p>";
-}
-
-
-#
-# ADD-PERM-USER
-#
-# User Add Permission functionaltiy
-#
-#
-#
-#
-if ($action eq "add-perm-user") {
-    if (!UserCan($user,"manage-users")) {
-        print h2('You do not have the required permissions to manage user permissions.');
-    } else {
-        if (!$run) {
-            #
-            # Generate the add form.
-            #
-            print start_form(-name=>'AddUserPerm'),
-            h2('Add User Permission'),
-            "Name: ", textfield(-name=>'name'),
-            "Permission: ", textfield(-name=>'permission'),
-            p,
-            hidden(-name=>'run',-default=>['1']),
-            hidden(-name=>'act',-default=>['add-perm-user']),
-            submit,
-            end_form,
-            hr;
-            my ($table,$error);
-            ($table,$error)=PermTable();
-            if (!$error) {
-                print "<h2>Available Permissions</h2>$table";
-            }
-        } else {
-            my $name=param('name');
-            my $perm=param('permission');
-            my $error=GiveUserPerm($name,$perm);
-            if ($error) {
-                print "Can't add permission to user because: $error";
-            } else {
-                print "Gave user $name permission $perm\n";
-            }
-        }
-    }
-    print "<p><a href=\"rwb.pl?act=base&run=1\">Return</a></p>";
-}
-
-
-#
-# REVOKE-PERM-USER
-#
-# User Permission Revocation functionaltiy
-#
-#
-#
-#
-if ($action eq "revoke-perm-user") {
-    if (!UserCan($user,"manage-users")) {
-        print h2('You do not have the required permissions to manage user permissions.');
-    } else {
-        if (!$run) {
-            #
-            # Generate the add form.
-            #
-            print start_form(-name=>'RevokeUserPerm'),
-            h2('Revoke User Permission'),
-            "Name: ", textfield(-name=>'name'),
-            "Permission: ", textfield(-name=>'permission'),
-            p,
-            hidden(-name=>'run',-default=>['1']),
-            hidden(-name=>'act',-default=>['revoke-perm-user']),
-            submit,
-            end_form,
-            hr;
-            my ($table,$error);
-            ($table,$error)=PermTable();
-            if (!$error) {
-                print "<h2>Available Permissions</h2>$table";
-            }
-        } else {
-            my $name=param('name');
-            my $perm=param('permission');
-            my $error=RevokeUserPerm($name,$perm);
-            if ($error) {
-                print "Can't revoke permission from user because: $error";
-            } else {
-                print "Revoked user $name permission $perm\n";
-            }
-        }
-    }
-    print "<p><a href=\"rwb.pl?act=base&run=1\">Return</a></p>";
+    print "<p><a href=\"pfm.pl?act=base&run=1\">Return</a></p>";
 }
 
 #
@@ -774,7 +403,7 @@ if ($action eq "revoke-perm-user") {
 if ($action eq "register-user") {
     my $id = param("id");
     my @invites = eval { ExecSQL($dbuser,$dbpasswd,
-        "select email, referer from rwb_invites where id=?",undef,$id);
+        "select email, referer from pfm_invites where id=?",undef,$id);
     };
     my $invite_info = $invites[0];
     my $email = @{$invite_info}[0];
@@ -808,7 +437,7 @@ if ($action eq "register-user") {
             print "Registered user $email\n";
         }
     }
-    print "<p><a href=\"rwb.pl?act=base&run=1\">Return</a></p>";
+    print "<p><a href=\"pfm.pl?act=base&run=1\">Return</a></p>";
 }
 
 
@@ -855,291 +484,6 @@ print end_html;
 # The remainder includes utilty and other functions
 #
 
-
-#
-# Generate a table of nearby committees
-# ($table|$raw,$error) = Committees(latne,longne,latsw,longsw,cycle,format)
-# $error false on success, error string on failure
-#
-sub addOpinion{
-    my($user, $color, $lat, $lng)=@_;
-    eval{
-        ExecSQL($dbuser, $dbpasswd, "insert into rwb_opinions values (?, ?, ?, ?)", undef, $user, $color, $lat, $lng);
-    };
-    return $@;
-}
-sub cyclesStringToArray {
-    my $cycleString = @_;
-    my @cyclesArray = [];
-    while ($cycleString =~ /(\d+)/g){
-        push(@cyclesArray, $1);
-    }
-    print join(", ", @cyclesArray);
-    return @cyclesArray;
-}
-sub CommitteesSum{
-    my ($latne,$longne,$latsw,$longsw,$cycle,$format, $party) = @_;
-    my @rows;
-    my $politicalAbbreviations;
-    
-    if($party == 'dem'){
-        $politicalAbbreviations = '(LBL, D, Dem)';
-    } else {
-        $politicalAbbreviations = '(REP, R, Tea, GOP, CON)';
-    }
-    eval {
-        @rows = ExecSQL($dbuser, $dbpasswd, "select sum(transaction_amnt) from cs339.cmte_id_to_geo natural join cs339.comm_to_comm natural join cs339.committee_master where cycle IN $cycle and latitude>? and latitude<? and longitude>? and longitude<? and cmte_pty_affiliation in $politicalAbbreviations",undef,$latsw,$latne,$longsw,$longne);
-    };
-    if ($@) {
-        return (undef,$@);
-    } else {
-        if ($format eq "table") {
-            return (MakeTable("committee_data","2D",
-            ["latitude", "longitude", "name", "party", "street1", "street2", "city", "state", "zip"],
-            @rows),$@);
-        } else {
-            return (MakeRaw("committee_data","2D",@rows),$@);
-        }
-    }
-}
-sub OpinionAverage{
-  my ($latne,$longne,$latsw,$longsw)=@_;
-  my @rows;
-  if (OpinionCheck($latne, $longne, $latsw, $longsw))
-  {
-  eval{
-    @rows=ExecSQL($dbuser, $dbpasswd, "select avg(color) from rwb_opinions where latitude>? and latitude<? and longitude>? and longitude<?", undef,$latsw,$latne,$longsw,$longne);
-  };
-  }
-  else 
-  {
-  my $latdif = $latne-$latsw;
-  my $longdif = $longne-$longsw;
-  return OpinionAverage($latne+0.5, $longne+0.5, $latsw-0.5, $longsw-0.5);
-  }
-      if ($@) {
-        return (undef,$@);
-    } else {
-        return ($rows[0][0], $@);
-    }
-}
-sub OpinionStdev{
-  my ($latne,$longne,$latsw,$longsw)=@_;
-  my @rows;
-  if (OpinionCheck($latne, $longne, $latsw, $longsw))
-  {
-  eval{
-    @rows=ExecSQL($dbuser, $dbpasswd, "select stddev(color) from rwb_opinions where latitude>? and latitude<? and longitude>? and longitude<?", undef,$latsw,$latne,$longsw,$longne);
-  };
-  }
-else 
-{
-  my $latdif = $latne-$latsw;
-  my $longdif = $longne-$longsw;
-  return OpinionStdev($latne+0.5, $longne+0.5, $latsw-0.5, $longsw-0.5);
-}
-      if ($@) {
-        return (undef,$@);
-    } else {
-        return ($rows[0][0], $@);
-    }
-}
-sub OpinionCheck{
-  my ($latne,$longne,$latsw,$longsw)=@_;
-  my @rows;
-  eval{
-    @rows=ExecSQL($dbuser, $dbpasswd, "select count(*) from rwb_opinions where latitude>? and latitude<? and longitude>? and longitude<?", undef, $latsw, $latne, $longsw, $longne);
-  };
-  if($@){
-    return(undef,$@);
-  }
-  else {
-    if ($rows[0][0]<2 || $rows[0][0]=="null")
-    {
-      return 0;
-    }
-    return 1;
-  }
-}
-sub Committees {
-    my ($latne,$longne,$latsw,$longsw,$cycle,$format) = @_;
-    my @rows;
-    eval {
-        @rows = ExecSQL($dbuser, $dbpasswd, "select latitude, longitude, cmte_nm, cmte_pty_affiliation, cmte_st1, cmte_st2, cmte_city, cmte_st, cmte_zip from cs339.committee_master natural join cs339.cmte_id_to_geo where cycle IN $cycle and latitude>? and latitude<? and longitude>? and longitude<?",undef,$latsw,$latne,$longsw,$longne);
-    };
-    if ($@) {
-        return (undef,$@);
-    } else {
-        if ($format eq "table") {
-            return (MakeTable("committee_data","2D",
-            ["latitude", "longitude", "name", "party", "street1", "street2", "city", "state", "zip"],
-            @rows),$@);
-        } else {
-            return (MakeRaw("committee_data","2D",@rows),$@);
-        }
-    }
-}
-
-sub UserInvite {
-    my ($email) = @_;
-    my $id = int(rand(10000000000000000));
-    eval { ExecSQL($dbuser,$dbpasswd,
-        "insert into rwb_invites (id,email,referer) values (?,?,?)",undef,$id,$email,$user);
-    };
-    my $link = "http://murphy.wot.eecs.northwestern.edu/~cjp794/rwb/rwb.pl?act=register-user&id=$id";
-    open(MAIL,"| mail -s \"You\ have\ been \invited\ to\ RWB!\" $email");
-    print MAIL "Click here to create your new account: $link";
-    close(MAIL);
-}
-sub Cycles{
-    my @rows;
-    eval {
-        @rows = ExecSQL($dbuser, $dbpasswd, "select distinct cycle from cs339.committee_master", undef);
-    };
-    if ($@){
-        return(undef,$@);
-    } else {
-        return (MakeRaw("cycle_data", "2D", @rows),$@)
-    }
-}
-
-#
-# Generate a table of nearby candidates
-# ($table|$raw,$error) = Committees(latne,longne,latsw,longsw,cycle,format)
-# $error false on success, error string on failure
-#
-sub Candidates {
-    my ($latne,$longne,$latsw,$longsw,$cycle,$format) = @_;
-    my @rows;
-    #print 'select latitude, longitude, cand_name, cand_pty_affiliation, cand_st1, cand_st2, cand_city, cand_st, cand_zip from cs339.candidate_master natural join cs339.cand_id_to_geo where cycle IN $cycle and latitude>? and latitude<? and longitude>? and longitude<?'
-    eval {
-        @rows = ExecSQL($dbuser, $dbpasswd, "select latitude, longitude, cand_name, cand_pty_affiliation, cand_st1, cand_st2, cand_city, cand_st, cand_zip from cs339.candidate_master natural join cs339.cand_id_to_geo where cycle IN $cycle and latitude>? and latitude<? and longitude>? and longitude<?",undef,$latsw,$latne,$longsw,$longne);
-    };
-    
-    if ($@) {
-        return (undef,$@);
-    } else {
-        if ($format eq "table") {
-            return (MakeTable("candidate_data", "2D",
-            ["latitude", "longitude", "name", "party", "street1", "street2", "city", "state", "zip"],
-            @rows),$@);
-        } else {
-            return (MakeRaw("candidate_data","2D",@rows),$@);
-        }
-    }
-}
-
-
-#
-# Generate a table of nearby individuals
-#
-# Note that the handout version does not integrate the crowd-sourced data
-#
-# ($table|$raw,$error) = Individuals(latne,longne,latsw,longsw,cycle,format)
-# $error false on success, error string on failure
-#
-sub Individuals {
-    my ($latne,$longne,$latsw,$longsw,$cycle,$format) = @_;
-    my @rows;
-    eval {
-        @rows = ExecSQL($dbuser, $dbpasswd, "select latitude, longitude, name, city, state, zip_code, employer, transaction_amnt from cs339.individual natural join cs339.ind_to_geo where cycle IN $cycle and latitude>? and latitude<? and longitude>? and longitude<?",undef,$latsw,$latne,$longsw,$longne);
-    };
-    
-    if ($@) {
-        return (undef,$@);
-    } else {
-        if ($format eq "table") {
-            return (MakeTable("individual_data", "2D",
-            ["latitude", "longitude", "name", "city", "state", "zip", "employer", "amount"],
-            @rows),$@);
-        } else {
-            return (MakeRaw("individual_data","2D",@rows),$@);
-        }
-    }
-}
-
-
-#
-# Generate a table of nearby opinions
-#
-# ($table|$raw,$error) = Opinions(latne,longne,latsw,longsw,cycle,format)
-# $error false on success, error string on failure
-#
-sub Opinions {
-    my ($latne, $longne, $latsw, $longsw, $cycle,$format) = @_;
-    my @rows;
-    eval {
-        @rows = ExecSQL($dbuser, $dbpasswd, "select latitude, longitude, color from rwb_opinions where latitude>? and latitude<? and longitude>? and longitude<?",undef,$latsw,$latne,$longsw,$longne);
-    };
-    
-    if ($@) {
-        return (undef,$@);
-    } else {
-        if ($format eq "table") {
-            return (MakeTable("opinion_data","2D",
-            ["latitude", "longitude", "name", "city", "state", "zip", "employer", "amount"],
-            @rows),$@);
-        } else {
-            return (MakeRaw("opinion_data","2D",@rows),$@);
-        }
-    }
-}
-
-
-#
-# Generate a table of available permissions
-# ($table,$error) = PermTable()
-# $error false on success, error string on failure
-#
-sub PermTable {
-    my @rows;
-    eval { @rows = ExecSQL($dbuser, $dbpasswd, "select action from rwb_actions"); };
-    if ($@) {
-        return (undef,$@);
-    } else {
-        return (MakeTable("perm_table",
-          "2D",
-        ["Perm"],
-        @rows),$@);
-    }
-}
-
-#
-# Generate a table of users
-# ($table,$error) = UserTable()
-# $error false on success, error string on failure
-#
-sub UserTable {
-    my @rows;
-    eval { @rows = ExecSQL($dbuser, $dbpasswd, "select name, email from rwb_users order by name"); };
-    if ($@) {
-        return (undef,$@);
-    } else {
-        return (MakeTable("user_table",
-          "2D",
-        ["Name", "Email"],
-        @rows),$@);
-    }
-}
-
-#
-# Generate a table of users and their permissions
-# ($table,$error) = UserPermTable()
-# $error false on success, error string on failure
-#
-sub UserPermTable {
-    my @rows;
-    eval { @rows = ExecSQL($dbuser, $dbpasswd, "select rwb_users.name, rwb_permissions.action from rwb_users, rwb_permissions where rwb_users.name=rwb_permissions.name order by rwb_users.name"); };
-    if ($@) {
-        return (undef,$@);
-    } else {
-        return (MakeTable("userperm_table",
-          "2D",
-        ["Name", "Permission"],
-        @rows),$@);
-    }
-}
-
 #
 # Add a user
 # call with name,password,email
@@ -1150,43 +494,7 @@ sub UserPermTable {
 #
 sub UserAdd {
     eval { ExecSQL($dbuser,$dbpasswd,
-        "insert into rwb_users (name,password,email,referer) values (?,?,?,?)",undef,@_);};
-    return $@;
-}
-
-#
-# Delete a user
-# returns false on success, $error string on failure
-#
-sub UserDel {
-    eval {ExecSQL($dbuser,$dbpasswd,"delete from rwb_users where name=?", undef, @_);};
-    return $@;
-}
-
-
-#
-# Give a user a permission
-#
-# returns false on success, error string on failure.
-#
-# GiveUserPerm($name,$perm)
-#
-sub GiveUserPerm {
-    eval { ExecSQL($dbuser,$dbpasswd,
-        "insert into rwb_permissions (name,action) values (?,?)",undef,@_);};
-    return $@;
-}
-
-#
-# Revoke a user's permission
-#
-# returns false on success, error string on failure.
-#
-# RevokeUserPerm($name,$perm)
-#
-sub RevokeUserPerm {
-    eval { ExecSQL($dbuser,$dbpasswd,
-        "delete from rwb_permissions where name=? and action=?",undef,@_);};
+        "insert into pfm_users (name,password,email,referer) values (?,?,?,?)",undef,@_);};
     return $@;
 }
 
@@ -1207,27 +515,6 @@ sub ValidUser {
         return $col[0]>0;
     }
 }
-
-
-#
-#
-# Check to see if user can do some action
-#
-# $ok = UserCan($user,$action)
-#
-sub UserCan {
-    my ($user,$action)=@_;
-    my @col;
-    eval {@col= ExecSQL($dbuser,$dbpasswd, "select count(*) from rwb_permissions where name=? and action=?","COL",$user,$action);};
-    if ($@) {
-        return 0;
-    } else {
-        return $col[0]>0;
-    }
-}
-
-
-
 
 
 #

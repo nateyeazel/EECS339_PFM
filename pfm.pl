@@ -339,6 +339,19 @@ if ($action eq "base") {
     "Welcome $user\!\t",
     "<a href=\"pfm.pl?act=logout&run=1\">Log Out</a></p>";
     
+    # Portfolios Table
+    my $format = param("format");
+    $format = "linked-table" if !defined($format);
+    my ($str,$error) = Portfolios($format);
+    if (!$error) {
+        if ($format eq "linked-table") {
+            print "<h3>Portfolios</h3>$str";
+        } else {
+            print $str;
+        }
+    }
+    print "</p><a href=\"pfm.pl?act=create-portfolio\">Create New Portfolio</a></p>";
+    
     if ($debug) {
         # visible if we are debugging
         print "<div id=\"data\" style=\:width:100\%; height:10\%\"></div>";
@@ -346,63 +359,7 @@ if ($action eq "base") {
         # invisible otherwise
         print "<div id=\"data\" style=\"display: none;\"></div>";
     }
-    
-    
-    # height=1024 width=1024 id=\"info\" name=\"info\" onload=\"UpdateMap()\"></iframe>";
-    
-    
-
-    
 }
-
-#
-# REGISTER-USER
-#
-# Register User functionaltiy
-#
-#
-#
-#
-if ($action eq "register-user") {
-    my $id = param("id");
-    my @invites = eval { ExecSQL($dbuser,$dbpasswd,
-        "select email, referer from pfm_invites where id=?",undef,$id);
-    };
-    my $invite_info = $invites[0];
-    my $email = @{$invite_info}[0];
-    my $referer = @{$invite_info}[1];
-    
-    if (!$run) {
-        print start_form(-name=>'RegisterUser'),
-        h2('Register User'),
-        "Email: ", textfield(-name=>'email',-default =>$email),
-        p,
-        "Username: ", textfield(-name=>'username'),
-        p,
-        "Password: ", textfield(-name=>'password'),
-        p,
-        hidden(-name=>'run',-default=>['1']),
-        hidden(-name=>'id',-default=>[$id]),
-        hidden(-name=>'referer',-default=>[$referer]),
-        hidden(-name=>'act',-default=>['register-user']),
-        submit,
-        end_form,
-        hr;
-    } else {
-        my $username=param('username');
-        my $password=param('password');
-        my $email=param('email');
-        my $referer=param('referer');
-        my $error=UserAdd($username, $password, $email, $referer);
-        if ($error) {
-            print "Can't register user because: $error";
-        } else {
-            print "Registered user $email\n";
-        }
-    }
-    print "<p><a href=\"pfm.pl?act=base&run=1\">Return</a></p>";
-}
-
 
 #
 #
@@ -446,6 +403,71 @@ print end_html;
 # The main line is finished at this point.
 # The remainder includes utilty and other functions
 #
+
+if ($action eq "create-portfolio") {
+    if (!$run) {
+        #
+        # Generate the invite form.
+        #
+        print start_form(-name=>'CreatePortfolio'),
+        h2('Create New Portfolio'),
+        "Portfolio Name ", textfield(-name=>'portfolio-name'),
+        p,
+        hidden(-name=>'run',-default=>['1']),
+        hidden(-name=>'act',-default=>['create-portfolio']),
+        submit,
+        end_form,
+        hr;
+    } else {
+        my $name=param('portfolio-name');
+        my $error=PortfolioAdd($name);
+        if ($error) {
+            print "Couldn't create portfolio because: $error";
+        } else {
+            print "Created portfolio $name\.\n";
+        }
+    }
+    print "<p><a href=\"pfm.pl?act=base&run=1\">Return</a></p>";
+}
+
+sub Portfolios {
+    my ($format) = @_;
+    my @rows;
+    eval {
+        @rows = ExecSQL($dbuser, $dbpasswd, "select portfolio_name from pfm_portfolios where user_id=?",undef,$user);
+    };
+    if ($@) {
+        return (undef,$@);
+    } else {
+        if ($format eq "linked-table") {
+            return (MakeLinkedTable("portfolios_list","2D",
+            ["Portfolios"],
+            @rows),$@);
+        } elsif ($format eq "table") {
+            return (MakeTable("portfolios_list","2D",
+            ["Portfolios"],
+            @rows),$@);
+        } else {
+            return (MakeRaw("portfolios_list","2D",@rows),$@);
+        }
+    }
+}
+
+#
+# Add a portfolio to a user's account
+# call with portfolio name
+#
+# returns false on success, error string on failure.
+#
+# PortfolioAdd($portfolio_name)
+#
+sub PortfolioAdd {
+    my ($name) = @_;
+    my $id = int(rand(10000000000000000));
+    eval { ExecSQL($dbuser,$dbpasswd,
+        "insert into pfm_portfolios(portfolio_id,user_id,portfolio_name,cash) values (?,?,?,0)",undef,$id,$user,$name);};
+    return $@;
+}
 
 #
 # Add a user
@@ -554,6 +576,60 @@ sub MakeTable {
     }
     return $out;
 }
+
+sub MakeLinkedTable {
+    my ($id,$type,$headerlistref,@list)=@_;
+    my $out;
+    #
+    # Check to see if there is anything to output
+    #
+    if ((defined $headerlistref) || ($#list>=0)) {
+        # if there is, begin a table
+        #
+        $out="<table id=\"$id\" border>";
+        #
+        # if there is a header list, then output it in bold
+        #
+        if (defined $headerlistref) {
+            $out.="<tr>".join("",(map {"<td><b>$_</b></td>"} @{$headerlistref}))."</tr>";
+        }
+        #
+        # If it's a single row, just output it in an obvious way
+        #
+        if ($type eq "ROW") {
+            #
+            # map {code} @list means "apply this code to every member of the list
+            # and return the modified list.  $_ is the current list member
+            #
+            $out.="<tr>".(map {defined($_) ? "<td>$_</td>" : "<td>(null)</td>" } @list)."</tr>";
+        } elsif ($type eq "COL") {
+            #
+            # ditto for a single column
+            #
+            $out.=join("",map {defined($_) ? "<tr><td>$_</td></tr>" : "<tr><td>(null)</td></tr>"} @list);
+        } else {
+            #
+            # For a 2D table, it's a bit more complicated...
+            #
+            $out.= join("",map {"<tr>$_</tr>"} (map {MakeLinkedRow(@{$_})} @list));
+        }
+        $out.="</table>";
+    } else {
+        # if no header row or list, then just say none.
+        $out.="(none)";
+    }
+    return $out;
+}
+
+sub MakeLinkedRow {
+    my ($first, @rest)=@_;
+    $first = "<td><a href=\"pfm.pl?act=portfolio&pname=$first\">$first</a></td>";
+    my $rest = join("",map {defined($_) ? "<td>$_</td>" : "<td>(null)</td>"} @rest);
+    return $first.$rest;
+    
+    {join("",map {MakeLinkedRow($_)} @{$_})}
+}
+
 
 
 #

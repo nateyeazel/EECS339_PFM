@@ -270,10 +270,10 @@ print header(-expires=>'now', -cookie=>\@outputcookies);
 # Now we finally begin generating back HTML
 #
 #
-#print start_html('Portforlio Manager 2K15');
+#print start_html('Portfolio Manager 2K15');
 print "<html style=\"height: 100\%\">";
 print "<head>";
-print "<title>Portforlio Manager 2K15</title>";
+print "<title>Portfolio Manager 2K15</title>";
 print "</head>";
 
 print "<body style=\"height:100\%;margin:0\">";
@@ -323,6 +323,14 @@ if ($action eq "login") {
     }
 }
 
+if ($action ne "login") {
+    
+    # Header
+    print h2('Portfolio Manager 2K15'),
+    "Welcome, $user\!\t",
+    "<a href=\"pfm.pl?act=logout&run=1\">Log Out</a></p>",
+    hr;
+}
 
 
 #
@@ -333,11 +341,6 @@ if ($action eq "login") {
 #
 #
 if ($action eq "base") {
-    
-    # Header
-    print h2('Portfolio Manager 2K15'),
-    "Welcome $user\!\t",
-    "<a href=\"pfm.pl?act=logout&run=1\">Log Out</a></p>";
     
     # Portfolios Table
     my $format = param("format");
@@ -416,8 +419,7 @@ if ($action eq "create-portfolio") {
         hidden(-name=>'run',-default=>['1']),
         hidden(-name=>'act',-default=>['create-portfolio']),
         submit,
-        end_form,
-        hr;
+        end_form;
     } else {
         my $name=param('portfolio-name');
         my $error=PortfolioAdd($name);
@@ -427,7 +429,54 @@ if ($action eq "create-portfolio") {
             print "Created portfolio $name\.\n";
         }
     }
-    print "<p><a href=\"pfm.pl?act=base&run=1\">Return</a></p>";
+    print hr,
+    "<p><a href=\"pfm.pl?act=base&run=1\">Return</a></p>";
+}
+
+if ($action eq "portfolio") {
+    my $pname = param("pname");
+    my $pid = PortfolioID($pname);
+    
+    # Portfolio Holdings Table
+    my $format = param("format");
+    $format = "linked-table" if !defined($format);
+    my ($str,$error) = PortfolioHoldings($pname, $pid, $format);
+    if (!$error) {
+        if ($format eq "linked-table") {
+            print "<h3>$pname Portfolio</h3>$str";
+        } else {
+            print $str;
+        }
+    }
+    
+    # Cash Balnce
+    my ($str,$error) = CashBalance($pid);
+    if (!$error) {
+        print $str;
+    }
+    
+    print "</p><a href=\"pfm.pl?act=deposit-withdraw?pname=$pname\">Deposit/Withdraw Cash</a></p>";
+    print "</p><a href=\"pfm.pl?act=buy-sell?pname=$pname\">Buy/Sell Stock</a></p>";
+    print "</p><a href=\"pfm.pl?act=record-price\">Record Stock Price</a></p>";
+    
+    print hr,
+    "<p><a href=\"pfm.pl?act=base&run=1\">Return</a></p>";
+}
+
+sub PortfolioID {
+    my ($pname) = @_;
+    my @rows;
+    eval {
+        @rows = ExecSQL($dbuser, $dbpasswd, "select portfolio_id from pfm_portfolios where user_id=? and portfolio_name=?",undef,$user,$pname);
+    };
+    if ($@) {
+        return (undef,$@);
+    } else {
+        foreach my $row (@rows)
+        {
+            return @$row[0];
+        }
+    }
 }
 
 sub Portfolios {
@@ -441,7 +490,7 @@ sub Portfolios {
     } else {
         if ($format eq "linked-table") {
             return (MakeLinkedTable("portfolios_list","2D",
-            ["Portfolios"],
+            ["Portfolios"],"portfolio&pname=",
             @rows),$@);
         } elsif ($format eq "table") {
             return (MakeTable("portfolios_list","2D",
@@ -450,6 +499,44 @@ sub Portfolios {
         } else {
             return (MakeRaw("portfolios_list","2D",@rows),$@);
         }
+    }
+}
+
+sub PortfolioHoldings {
+    my ($pname, $pid, $format) = @_;
+    my @rows;
+    eval {
+        @rows = ExecSQL($dbuser, $dbpasswd, "select symbol, num_shares from pfm_portfolioHoldings where portfolio_id=?",undef,$pid);
+    };
+    if ($@) {
+        return (undef,$@);
+    } else {
+        if ($format eq "linked-table") {
+            return (MakeLinkedTable("portfolio_holdings","2D",
+            ["Stock", "Shares"],"stock&pid=$pname&symbol=",
+            @rows),$@);
+        } elsif ($format eq "table") {
+            return (MakeTable("portfolio_holdings","2D",
+            ["Portfolios"],
+            @rows),$@);
+        } else {
+            return (MakeRaw("portfolio_holdings","2D",@rows),$@);
+        }
+    }
+}
+
+sub CashBalance {
+    my ($pid) = @_;
+    my @rows;
+    eval {
+        @rows = ExecSQL($dbuser, $dbpasswd, "select cash from pfm_portfolios where portfolio_id=?",undef,$pid);
+    };
+    if ($@) {
+        return (undef,$@);
+    } else {
+        return (MakeTable("cash_balance","2D",
+        ["Cash"],
+        @rows),$@);
     }
 }
 
@@ -578,7 +665,7 @@ sub MakeTable {
 }
 
 sub MakeLinkedTable {
-    my ($id,$type,$headerlistref,@list)=@_;
+    my ($id,$type,$headerlistref,$linkbase,@list)=@_;
     my $out;
     #
     # Check to see if there is anything to output
@@ -611,7 +698,7 @@ sub MakeLinkedTable {
             #
             # For a 2D table, it's a bit more complicated...
             #
-            $out.= join("",map {"<tr>$_</tr>"} (map {MakeLinkedRow(@{$_})} @list));
+            $out.= join("",map {"<tr>$_</tr>"} (map {MakeLinkedRow($linkbase,@{$_})} @list));
         }
         $out.="</table>";
     } else {
@@ -622,8 +709,8 @@ sub MakeLinkedTable {
 }
 
 sub MakeLinkedRow {
-    my ($first, @rest)=@_;
-    $first = "<td><a href=\"pfm.pl?act=portfolio&pname=$first\">$first</a></td>";
+    my ($linkbase, $first, @rest)=@_;
+    $first = "<td><a href=\"pfm.pl?act=$linkbase$first\">$first</a></td>";
     my $rest = join("",map {defined($_) ? "<td>$_</td>" : "<td>(null)</td>"} @rest);
     return $first.$rest;
     

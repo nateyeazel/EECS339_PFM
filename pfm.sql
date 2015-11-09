@@ -11,7 +11,7 @@ create table pfm_portfolios(
     primary key(portfolio_name, user_id)
 );
 create table pfm_portfolioHoldings(
-	portfolio_id number not null references pfm_portfolio(portfolio_id),
+	portfolio_id number not null references pfm_portfolios(portfolio_id),
 	symbol varchar2(16) not null references pfm_stocks(symbol),
 	num_shares number not null,
     timestamp number not null,

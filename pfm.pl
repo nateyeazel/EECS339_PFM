@@ -289,7 +289,7 @@ print "<body style=\"height:100\%;margin:0\">";
 print "<style type=\"text/css\">\n\@import \"pfm.css\";\n</style>\n";
 
 
-print "<center>" if !$debug;
+print "<center>";
 
 
 #
@@ -364,43 +364,7 @@ if ($action eq "base") {
     }
 }
 
-#
-#
-#
-#
-# Debugging output is the last thing we show, if it is set
-#
-#
-#
-#
-
-print "</center>" if !$debug;
-
-#
-# Generate debugging output if anything is enabled.
-#
-#
-if ($debug) {
-    print hr, p, hr,p, h2('Debugging Output');
-    print h3('Parameters');
-    print "<menu>";
-    print map { "<li>$_ => ".escapeHTML(param($_)) } param();
-    print "</menu>";
-    print h3('Cookies');
-    print "<menu>";
-    print map { "<li>$_ => ".escapeHTML(cookie($_))} cookie();
-    print "</menu>";
-    my $max= $#sqlinput>$#sqloutput ? $#sqlinput : $#sqloutput;
-    print h3('SQL');
-    print "<menu>";
-    for (my $i=0;$i<=$max;$i++) {
-        print "<li><b>Input:</b> ".escapeHTML($sqlinput[$i]);
-        print "<li><b>Output:</b> $sqloutput[$i]";
-    }
-    print "</menu>";
-}
-
-print end_html;
+print "</center>";
 
 #
 # The main line is finished at this point.
@@ -510,6 +474,29 @@ if ($action eq "deposit-withdraw") {
     print hr,
     "<p><a href=\"pfm.pl?act=base&run=1\">Return</a></p>";
 }
+
+if ($debug) {
+    print hr, p, h2('Debugging Output');
+    print h3('Parameters');
+    print "<menu>";
+    print map { "<li>$_ => ".escapeHTML(param($_)) } param();
+    print "</menu>";
+    print h3('Cookies');
+    print "<menu>";
+    print map { "<li>$_ => ".escapeHTML(cookie($_))} cookie();
+    print "</menu>";
+    my $max= $#sqlinput>$#sqloutput ? $#sqlinput : $#sqloutput;
+    print h3('SQL');
+    print "<menu>";
+    for (my $i=0;$i<=$max;$i++) {
+        print "<li><b>Input:</b> ".escapeHTML($sqlinput[$i]);
+        print "<li><b>Output:</b> $sqloutput[$i]";
+    }
+    print "</menu>";
+}
+
+print end_html;
+
 
 sub PortfolioID {
     my ($pname) = @_;

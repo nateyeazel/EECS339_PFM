@@ -449,15 +449,63 @@ if ($action eq "portfolio") {
         }
     }
     
-    # Cash Balnce
-    my ($str,$error) = CashBalance($pid);
+    # Cash Balance
+    my $format1 = param("format");
+    $format1 = "table" if !defined($format1);
+    my ($str1,$error1) = CashBalance($format1,$pid);
+    if (!$error1) {
+        print $str1;
+    }
+    
+    print "</p><a href=\"pfm.pl?act=deposit-withdraw&pname=$pname\">Deposit/Withdraw Cash</a></p>";
+    print "</p><a href=\"pfm.pl?act=buy-sell&pname=$pname\">Buy/Sell Stock</a></p>";
+    print "</p><a href=\"pfm.pl?act=record-price\">Record Stock Price</a></p>";
+    
+    print hr,
+    "<p><a href=\"pfm.pl?act=base&run=1\">Return</a></p>";
+}
+
+
+if ($action eq "deposit-withdraw") {
+    my $pname = param("pname");
+    my $pid = PortfolioID($pname);
+    my $format = param("format");
+    $format = "table" if !defined($format);
+    # Cash Balance
+    my ($str,$error) = CashBalance($format,$pid);
     if (!$error) {
         print $str;
     }
     
-    print "</p><a href=\"pfm.pl?act=deposit-withdraw?pname=$pname\">Deposit/Withdraw Cash</a></p>";
-    print "</p><a href=\"pfm.pl?act=buy-sell?pname=$pname\">Buy/Sell Stock</a></p>";
-    print "</p><a href=\"pfm.pl?act=record-price\">Record Stock Price</a></p>";
+    if (!$run) {
+        print start_form(-name=>'DepositWithdraw', -method=>'POST'),
+            h2('Deposit/Withdraw'),
+            "Amount ",
+            textfield(-name=>'amount'),
+            p,
+            hidden(-name=>'run',-default=>['1']),
+            hidden(-name=>'act',-default=>['deposit-withdraw']),
+            submit(-name => 'deposit', -value => 'Deposit'),
+            submit(-name => 'withdraw', -value => 'Withdraw'),
+            end_form;
+    } elsif (param('deposit')) {
+        my $amount=param('amount');
+        my $error1=CashDeposit($pid, $amount);
+        if ($error1) {
+            print "Couldn't deposit into account: $error";
+        } else {
+            print "Deposited $amount\ into cash account.\n";
+        }
+    } elsif (param('withdraw')) {
+        my $amount=param('amount');
+        my $error2=CashWithdraw($pid, $amount);
+        if ($error2) {
+            print "Couldn't deposit into account: $error";
+        } else {
+            print "Deposited $amount\ into cash account.\n";
+        }
+
+    }
     
     print hr,
     "<p><a href=\"pfm.pl?act=base&run=1\">Return</a></p>";
@@ -525,8 +573,22 @@ sub PortfolioHoldings {
     }
 }
 
+sub CashDeposit {
+    my ($pid, $amount) = @_;
+    eval { ExecSQL($dbuser, $dbpasswd, "update pfm_portfolios set cash=cash+? where portfolio_id=?",undef,$amount,$pid);
+    };
+    return @;
+}
+
+sub CashWithdraw {
+    my ($pid, $amount) = @_;
+    eval { ExecSQL($dbuser, $dbpasswd, "update pfm_portfolios set cash=cash-? where portfolio_id=?",undef,$amount,$pid);
+    };
+    return @;
+}
+
 sub CashBalance {
-    my ($pid) = @_;
+    my ($format, $pid) = @_;
     my @rows;
     eval {
         @rows = ExecSQL($dbuser, $dbpasswd, "select cash from pfm_portfolios where portfolio_id=?",undef,$pid);
@@ -534,9 +596,13 @@ sub CashBalance {
     if ($@) {
         return (undef,$@);
     } else {
-        return (MakeTable("cash_balance","2D",
-        ["Cash"],
-        @rows),$@);
+        if ($format eq "table") {
+            return (MakeTable("cash_balance","2D",
+            ["Current Cash Balance"],
+            @rows),$@);
+        } else {
+            return (MakeRaw("cash_balance","2D",@rows),$@);
+        }
     }
 }
 

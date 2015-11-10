@@ -324,7 +324,7 @@ if ($action eq "login") {
 }
 
 if ($action ne "login") {
-    
+
     # Header
     print h2('Portfolio Manager 2K15'),
     "Welcome, $user\!\t",
@@ -341,7 +341,7 @@ if ($action ne "login") {
 #
 #
 if ($action eq "base") {
-    
+
     # Portfolios Table
     my $format = param("format");
     $format = "linked-table" if !defined($format);
@@ -354,7 +354,7 @@ if ($action eq "base") {
         }
     }
     print "</p><a href=\"pfm.pl?act=create-portfolio\">Create New Portfolio</a></p>";
-    
+
     if ($debug) {
         # visible if we are debugging
         print "<div id=\"data\" style=\:width:100\%; height:10\%\"></div>";
@@ -400,7 +400,7 @@ if ($action eq "create-portfolio") {
 if ($action eq "portfolio") {
     my $pname = param("pname");
     my $pid = PortfolioID($pname);
-    
+
     # Portfolio Holdings Table
     my $format = param("format");
     $format = "linked-table" if !defined($format);
@@ -412,7 +412,7 @@ if ($action eq "portfolio") {
             print $str;
         }
     }
-    
+
     # Cash Balance
     my $format1 = param("format");
     $format1 = "table" if !defined($format1);
@@ -420,11 +420,11 @@ if ($action eq "portfolio") {
     if (!$error1) {
         print $str1;
     }
-    
+
     print "</p><a href=\"pfm.pl?act=deposit-withdraw&pname=$pname\">Deposit/Withdraw Cash</a></p>";
     print "</p><a href=\"pfm.pl?act=buy-sell&pname=$pname\">Buy/Sell Stock</a></p>";
     print "</p><a href=\"pfm.pl?act=record-price\">Record Stock Price</a></p>";
-    
+
     print hr,
     "<p><a href=\"pfm.pl?act=base&run=1\">Return</a></p>";
 }
@@ -441,7 +441,7 @@ if ($action eq "deposit-withdraw") {
     if (!$error) {
         print $str;
     }
-    
+
     if (!$run) {
         print start_form(-name=>'DepositWithdraw', -method=>'POST'),
             "Amount ",
@@ -470,9 +470,34 @@ if ($action eq "deposit-withdraw") {
         }
 
     }
-    
+
     print hr,
     "<p><a href=\"pfm.pl?act=base&run=1\">Return</a></p>";
+}
+
+#For when you buy and sell stocks
+if($action eq "buy-sell"){
+    my $pname = param("pname");
+    my $pid = PortfolioID($pname);
+    my $format = param("format");
+    $format = "table" if !defined($format);
+
+    if (!$run) {
+        print start_form(-name=>'Buy Stocks', -method=>'POST'),
+            "Stock Name ",
+            textfield(-name=>'stock-symbol'),
+            p,
+            "Amount ",
+            textfield(-name=> 'stocks-amount'),
+            hidden(-name=>'run',-default=>['1']),
+            hidden(-name=>'act',-default=>['buy-sell']),
+            submit(-name => 'buy', -value => 'Submit Purchase'),
+            end_form;
+    } elsif(param('buy')){
+        my $symb = param('stock-symbol');
+        my $amount = param('stocks-amount');
+        my $error = BuyStock($amount, $symb, $pid);
+    }
 }
 
 if ($debug) {
@@ -593,6 +618,44 @@ sub CashBalance {
     }
 }
 
+sub getRecentPrice {
+    my(@symb) = @_;
+    my @rows;
+    eval{
+        @rows = ExecSQL($dbuser, $dbpasswd, "select close from cs339.StocksDaily where symbol = ? and timestamp= (select max(timestamp) from cs339.StocksDaily where symbol = ?)", undef, $symb, $symb);
+    };
+    if($@) {
+        return (undef, $@);
+    } else {
+        foreach my $row (@rows)
+        {
+            return @$row[0];
+        }
+    }
+}
+
+sub BuyStock {
+    my($amount, $symb, $pid) = @_;
+    my @rows;
+    eval{
+        @rows = ExecSQL($dbuser, $dbpasswd, "insert into pfm_portfolioHoldings(portfolio_id, symbol, num_shares, timestamp, purchase_price) values (?, ?, ?, ?, ?)", undef, $pid, $symb, $amount, $ )
+    };
+
+    return @;
+}
+
+sub getStocks {
+    my ($pid) = @_;
+    my @rows;
+    eval {
+        @rows = ExecSQL($dbuser, $dbpasswd, "select symbol from pfm_portfolioHoldings where portfolio_id = ?", undef, $pid);
+    };
+    if($@) {
+        return (undef, $@);
+    } else {
+        return (MakeRaw('stock-list', '2D',@rows), $@);
+    }
+}
 #
 # Add a portfolio to a user's account
 # call with portfolio name
@@ -766,7 +829,7 @@ sub MakeLinkedRow {
     $first = "<td><a href=\"pfm.pl?act=$linkbase$first\">$first</a></td>";
     my $rest = join("",map {defined($_) ? "<td>$_</td>" : "<td>(null)</td>"} @rest);
     return $first.$rest;
-    
+
     {join("",map {MakeLinkedRow($_)} @{$_})}
 }
 

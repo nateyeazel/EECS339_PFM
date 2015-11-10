@@ -473,13 +473,13 @@ if ($action eq "deposit-withdraw") {
     $format = "table" if !defined($format);
     # Cash Balance
     my ($str,$error) = CashBalance($format,$pid);
+    print h2('Deposit/Withdraw'), p;
     if (!$error) {
         print $str;
     }
     
     if (!$run) {
         print start_form(-name=>'DepositWithdraw', -method=>'POST'),
-            h2('Deposit/Withdraw'),
             "Amount ",
             textfield(-name=>'amount'),
             p,
@@ -492,17 +492,17 @@ if ($action eq "deposit-withdraw") {
         my $amount=param('amount');
         my $error1=CashDeposit($pid, $amount);
         if ($error1) {
-            print "Couldn't deposit into account: $error";
+            print p, "Couldn't deposit into account: $error";
         } else {
-            print "Deposited $amount\ into cash account.\n";
+            print p, "Deposited $amount\ into cash account.\n";
         }
     } elsif (param('withdraw')) {
         my $amount=param('amount');
         my $error2=CashWithdraw($pid, $amount);
         if ($error2) {
-            print "Couldn't deposit into account: $error";
+            print p, "Couldn't withdraw from account: $error";
         } else {
-            print "Deposited $amount\ into cash account.\n";
+            print p, "Withdrew $amount\ from cash account.\n";
         }
 
     }

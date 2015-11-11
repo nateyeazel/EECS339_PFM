@@ -694,7 +694,12 @@ if ($action eq 'stock'){
     my $pname = param("pname");
     my $pid = PortfolioID($pname);
     my $format = param("format");
+    $format = "table" if !defined($format);
+
     my $symbol = param("symbol");
+    my $cash = CashBalance('number', $pid);
+    my $recentPrice = getRecentPrice($symbol);
+
     $format = "table" if !defined($format);
 
     if (!$run){
@@ -707,6 +712,7 @@ if ($action eq 'stock'){
         "<input name = 'end' type='date'>",
         hidden(-name=>'run',-default=>['1']),
         hidden(-name=>'act',-default=>['stock']),
+        hidden(-name=>'pname',-default=>['$pname']),
         p,
         submit(-name=> 'select-dates', -value=>'Select Date Range'),
         end_form;
@@ -721,6 +727,11 @@ if ($action eq 'stock'){
       print "Timestamp      Close Price";
       print "<pre>", $output, "</pre>";  
     }  
+
+    print "<h3>Predictions for this stock using Automated Trading Strategy </h3>";
+    my $predictionResult = `./shannon_ratchet.pl $symbol $cash $recentPrice`;
+    print "<pre>", $predictionResult, "</pre>";
+
     "<p><a href=\"pfm.pl?act=portfolio&pname=$pname\">Return</a></p>";
 }
 

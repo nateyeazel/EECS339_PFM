@@ -439,13 +439,13 @@ if($action eq "covar-matrix") {
     my $pname = param("pname");
     my $pid = PortfolioID($pname);
 
-    print "<h3>Covariance matrix</h3>";
-    print "Select a date and time";
+    print "<h3>Covariance Matrix</h3>";
+    print "Select a date and time:", p;
     print start_form(-name=>'Record new data', -method =>'POST'),
-        "Start date:",
+        "Start ",
         "<input name = 'start' type='date'>",
         p,
-        "End Date:",
+        "End ",
         "<input name = 'end' type='date'>",
         hidden(-name=>'run',-default=>['1']),
         hidden(-name=>'act',-default=>['portfolio']),
@@ -454,9 +454,7 @@ if($action eq "covar-matrix") {
         submit(-name=> 'select-covar-dates', -value=>'Select Date Range'),
         end_form;
 
-    if(!$run){
-        
-    } elsif(param('select-covar-dates')){
+    if(param('select-covar-dates')){
         my $symbols = PortolioSymbols($pid);
         my $symbolsString = '';
         my $start = param('start');
@@ -469,6 +467,8 @@ if($action eq "covar-matrix") {
         print "<pre>", $results, "</pre>"; 
     }
     
+    print hr,
+    "<p><a href=\"pfm.pl?act=portfolio&pname=$pname\">Return</a></p>";
 }
 
 if ($action eq "deposit-withdraw") {
@@ -704,10 +704,10 @@ if ($action eq "record-price"){
         my $volume= param('volume-traded');
         my $error= RecordPrice($symb, $high, $low, $close, $open, $volume);
         if ($error){
-            print "Couldn't add record :$error";
+            print "Error: Couldn't add record.";
         }
         else {
-            print "Record added successfully";
+            print "Record added successfully.";
         }
     }
     
@@ -728,7 +728,7 @@ if ($action eq 'stock'){
     $format = "table" if !defined($format);
 
     if (!$run){
-    print "<h2>Stock information for $symbol</h2>";
+    print "<h2>Stock Information for $symbol</h2>";
     print start_form(-name=>'Record new data', -method =>'POST'),
         "Start date:",
         "<input name = 'start' type='date'>",
@@ -753,11 +753,12 @@ if ($action eq 'stock'){
       print "<pre>", $output, "</pre>";  
     }  
 
-    print "<h3>Predictions for this stock using Automated Trading Strategy </h3>";
+    print "<h3>Automated Trading Strategy Predictions for $symbol</h3>";
     my $predictionResult = `./shannon_ratchet.pl $symbol $cash $recentPrice`;
     print "<pre>", $predictionResult, "</pre>";
 
-    "<p><a href=\"pfm.pl?act=portfolio&pname=$pname\">Return</a></p>";
+    print hr,
+        "<p><a href=\"pfm.pl?act=portfolio&pname=$pname\">Return</a></p>";
 }
 
 sub RecordPrice{
@@ -837,7 +838,7 @@ sub PortfolioHoldings {
     my ($pname, $pid, $format) = @_;
     my @rows;
     eval {
-        @rows = ExecSQL($dbuser, $dbpasswd, "select t1.symbol, num_shares, close, num_shares * close from (select symbol, num_shares from pfm_portfolioHoldings where portfolio_id = 9017683154243094) t1 join (select symbol, close from allStockData where (symbol, timestamp) in (select symbol, max(timestamp) as timestamp from (select * from cs339.StocksDaily where symbol in (select symbol from pfm_portfolioHoldings where portfolio_id = ?) union select * from pfm_stocksData where symbol in (select symbol from pfm_portfolioHoldings where portfolio_id = ?)) group by symbol)) t2 on t1.symbol=t2.symbol",undef,$pid,$pid);
+        @rows = ExecSQL($dbuser, $dbpasswd, "select t1.symbol, num_shares, close, num_shares * close from (select symbol, num_shares from pfm_portfolioHoldings where portfolio_id = ?) t1 join (select symbol, close from allStockData where (symbol, timestamp) in (select symbol, max(timestamp) as timestamp from (select * from cs339.StocksDaily where symbol in (select symbol from pfm_portfolioHoldings where portfolio_id = ?) union select * from pfm_stocksData where symbol in (select symbol from pfm_portfolioHoldings where portfolio_id = ?)) group by symbol)) t2 on t1.symbol=t2.symbol",undef,$pid,$pid,$pid);
     };
     if ($@) {
         return (undef,$@);
@@ -916,7 +917,7 @@ sub TotalValue {
     my ($pid) = @_;
     my @rows;
     eval {
-        @rows = ExecSQL($dbuser, $dbpasswd, "select sum(num_shares * close) from (select symbol, num_shares from pfm_portfolioHoldings where portfolio_id = 9017683154243094) t1 join (select symbol, close from allStockData where (symbol, timestamp) in (select symbol, max(timestamp) as timestamp from (select * from cs339.StocksDaily where symbol in (select symbol from pfm_portfolioHoldings where portfolio_id = ?) union select * from pfm_stocksData where symbol in (select symbol from pfm_portfolioHoldings where portfolio_id = ?)) group by symbol)) t2 on t1.symbol=t2.symbol",undef,$pid,$pid);
+        @rows = ExecSQL($dbuser, $dbpasswd, "select sum(num_shares * close) from (select symbol, num_shares from pfm_portfolioHoldings where portfolio_id = ?) t1 join (select symbol, close from allStockData where (symbol, timestamp) in (select symbol, max(timestamp) as timestamp from (select * from cs339.StocksDaily where symbol in (select symbol from pfm_portfolioHoldings where portfolio_id = ?) union select * from pfm_stocksData where symbol in (select symbol from pfm_portfolioHoldings where portfolio_id = ?)) group by symbol)) t2 on t1.symbol=t2.symbol",undef,$pid,$pid,$pid);
     };
     if ($@) {
         return (undef,$@);

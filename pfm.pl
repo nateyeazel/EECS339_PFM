@@ -417,24 +417,20 @@ if ($action eq "portfolio") {
         }
     }
     
-    print p;
-
-    # Cash Balance
-    my $format1 = param("format");
-    $format1 = "table" if !defined($format1);
-    my ($str1,$error1) = CashBalance($format1,$pid);
-    if (!$error1) {
-        print $str1;
+    my $totalvalue = TotalValue($pid);
+    my $totalcash = CashBalance("number",$pid);
+    if ($totalvalue <= 0) {
+        $totalvalue = 0;
     }
+    my $total = $totalvalue+$totalcash;
+    print p,
+        "<table id=\"totals\" border=\"\"><tbody><tr><td><b>Total Value of Stocks</b></td><td>$totalvalue</td></tr><tr><td><b>Cash Balance</b></td><td>$totalcash</td></tr><tr><td><b>Total Value of Portfolio</b></td><td>$total</td></tr></tbody></table>";
 
     print "</p><a href=\"pfm.pl?act=deposit-withdraw&pname=$pname\">Deposit/Withdraw Cash</a></p>";
     print "</p><a href=\"pfm.pl?act=buy-sell&pname=$pname\">Buy/Sell Stock</a></p>";
     print "</p><a href=\"pfm.pl?act=record-price&pname=$pname\">Record Stock Price</a></p>";
     print "</p><a href='pfm.pl?act=covar-matrix&pname=$pname'>See Covariance Matrix</a></p>";
 
-    
-    
-    
     print hr,
     "<p><a href=\"pfm.pl?act=base&run=1\">Return</a></p>";
 }
@@ -503,7 +499,7 @@ if ($action eq "deposit-withdraw") {
         my $error1=CashDeposit($pid, $amount);
         # Cash Balance
         my ($str,$error) = CashBalance($format,$pid);
-        print h2('Deposit/Withdraw'), p;
+        print h3('Deposit/Withdraw'), p;
         if (!$error) {
             print $str;
         }
@@ -517,7 +513,7 @@ if ($action eq "deposit-withdraw") {
         my $error2=CashWithdraw($pid, $amount);
         # Cash Balance
         my ($str,$error) = CashBalance($format,$pid);
-        print h2('Deposit/Withdraw'), p;
+        print h3('Deposit/Withdraw'), p;
         if (!$error) {
             print $str;
         }
@@ -548,7 +544,11 @@ if($action eq "buy-sell"){
         if (!$error) {
             print "$str";
         }
-
+        print p;
+        
+        # Cash Balance
+        my $totalcash = CashBalance("number",$pid);
+        print "<table id=\"cash-balance\" border=\"\"><tbody><tr><td><b>Cash Balance</b></td><td>$totalcash</td></tr></tbody></table>";
         print start_form(-name=>'Buy Stocks', -method=>'POST'),
             p,
             "Symbol ",
@@ -572,28 +572,43 @@ if($action eq "buy-sell"){
         if($cost <= 0){
             # Portfolio Holdings Table
             my ($str,$error) = PortfolioHoldings($pname, $pid, "table");
-            print h2('Buy/Sell Stock'), p;
+            print h3('Buy/Sell Stock'), p;
             if (!$error) {
                 print "$str";
             }
+            print p;
+            
+            # Cash Balance
+            my $totalcash = CashBalance("number",$pid);
+            print "<table id=\"cash-balance\" border=\"\"><tbody><tr><td><b>Cash Balance</b></td><td>$totalcash</td></tr></tbody></table>";
             print p, "Error: Invalid purchase.";
         } elsif ($cost > $cash_balance){
             # Portfolio Holdings Table
             my ($str,$error) = PortfolioHoldings($pname, $pid, "table");
-            print h2('Buy/Sell Stock'), p;
+            print h3('Buy/Sell Stock'), p;
             if (!$error) {
                 print "$str";
             }
+            print p;
+            
+            # Cash Balance
+            my $totalcash = CashBalance("number",$pid);
+            print "<table id=\"cash-balance\" border=\"\"><tbody><tr><td><b>Cash Balance</b></td><td>$totalcash</td></tr></tbody></table>";
             print p, "Error: Insufficient funds to purchase $amount shares of $symb at \$$stockPrice\/share with a cash balance of \$$cash_balance\.";
         } else {
             my $error1 = CashWithdraw($pid, $amount * $stockPrice);
             my $error2 = BuyStock($amount, $symb, $pid);
             # Portfolio Holdings Table
             my ($str,$error) = PortfolioHoldings($pname, $pid, "table");
-            print h2('Buy/Sell Stock'), p;
+            print h3('Buy/Sell Stock'), p;
             if (!$error) {
                 print "$str";
             }
+            print p;
+            
+            # Cash Balance
+            my $totalcash = CashBalance("number",$pid);
+            print "<table id=\"cash-balance\" border=\"\"><tbody><tr><td><b>Cash Balance</b></td><td>$totalcash</td></tr></tbody></table>";
             if ($error2)
             {
                 print p, "Error: Purchase failed.";
@@ -610,19 +625,29 @@ if($action eq "buy-sell"){
         if ($cost <= 0) {
             # Portfolio Holdings Table
             my ($str,$error) = PortfolioHoldings($pname, $pid, "table");
-            print h2('Buy/Sell Stock'), p;
+            print h3('Buy/Sell Stock'), p;
             if (!$error) {
                 print "$str";
             }
+            print p;
+            
+            # Cash Balance
+            my $totalcash = CashBalance("number",$pid);
+            print "<table id=\"cash-balance\" border=\"\"><tbody><tr><td><b>Cash Balance</b></td><td>$totalcash</td></tr></tbody></table>";
             print p, "Error: Invalid sale.";
         } else {
             my $error2 = SellStock($amount, $symb, $pid);
             # Portfolio Holdings Table
             my ($str,$error) = PortfolioHoldings($pname, $pid, "table");
-            print h2('Buy/Sell Stock'), p;
+            print h3('Buy/Sell Stock'), p;
             if (!$error) {
                 print "$str";
             }
+            print p;
+            
+            # Cash Balance
+            my $totalcash = CashBalance("number",$pid);
+            print "<table id=\"cash-balance\" border=\"\"><tbody><tr><td><b>Cash Balance</b></td><td>$totalcash</td></tr></tbody></table>";
             if ($error2)
             {
                 print p, "Error: Sale failed.";
@@ -814,18 +839,18 @@ sub PortfolioHoldings {
     my ($pname, $pid, $format) = @_;
     my @rows;
     eval {
-        @rows = ExecSQL($dbuser, $dbpasswd, "select symbol, num_shares from pfm_portfolioHoldings where portfolio_id=?",undef,$pid);
+        @rows = ExecSQL($dbuser, $dbpasswd, "select t1.symbol, num_shares, close, num_shares * close from (select symbol, num_shares from pfm_portfolioHoldings where portfolio_id = 9017683154243094) t1 join (select symbol, close from allStockData where (symbol, timestamp) in (select symbol, max(timestamp) as timestamp from (select * from cs339.StocksDaily where symbol in (select symbol from pfm_portfolioHoldings where portfolio_id = ?) union select * from pfm_stocksData where symbol in (select symbol from pfm_portfolioHoldings where portfolio_id = ?)) group by symbol)) t2 on t1.symbol=t2.symbol",undef,$pid,$pid);
     };
     if ($@) {
         return (undef,$@);
     } else {
         if ($format eq "linked-table") {
             return (MakeLinkedTable("portfolio_holdings","2D",
-            ["Stock", "Shares"],"stock&pname=$pname&symbol=",
+            ["Stock", "Shares", "Price", "Value"],"stock&pname=$pname&symbol=",
             @rows),$@);
         } elsif ($format eq "table") {
             return (MakeTable("portfolio_holdings","2D",
-            ["Portfolios", "Shares"],
+            ["Stock", "Shares", "Price", "Value"],
             @rows),$@);
         } else {
             return (MakeRaw("portfolio_holdings","2D",@rows),$@);
@@ -889,11 +914,27 @@ sub CashBalance {
     }
 }
 
+sub TotalValue {
+    my ($pid) = @_;
+    my @rows;
+    eval {
+        @rows = ExecSQL($dbuser, $dbpasswd, "select sum(num_shares * close) from (select symbol, num_shares from pfm_portfolioHoldings where portfolio_id = 9017683154243094) t1 join (select symbol, close from allStockData where (symbol, timestamp) in (select symbol, max(timestamp) as timestamp from (select * from cs339.StocksDaily where symbol in (select symbol from pfm_portfolioHoldings where portfolio_id = ?) union select * from pfm_stocksData where symbol in (select symbol from pfm_portfolioHoldings where portfolio_id = ?)) group by symbol)) t2 on t1.symbol=t2.symbol",undef,$pid,$pid);
+    };
+    if ($@) {
+        return (undef,$@);
+    } else {
+        foreach my $row (@rows)
+        {
+            return @$row[0];
+        }
+    }
+}
+
 sub getRecentPrice {
     my($symb) = @_;
     my @rows;
     eval{
-        @rows = ExecSQL($dbuser, $dbpasswd, "select close from cs339.StocksDaily where symbol = ? and timestamp= (select max(timestamp) from cs339.StocksDaily where symbol = ?)", undef, $symb, $symb);
+        @rows = ExecSQL($dbuser, $dbpasswd, "select close from allStockData where symbol = ? and timestamp= (select max(timestamp) from allStockData where symbol = ?)", undef, $symb, $symb);
     };
     if($@) {
         return (undef, $@);
@@ -940,6 +981,9 @@ sub SellStock {
     if ($@) {
         return (undef,$@);
     } else {
+        eval{
+            ExecSQL($dbuser, $dbpasswd, "delete from pfm_portfolioHoldings where num_shares = 0", undef)
+        };
         return @;
     }
 }

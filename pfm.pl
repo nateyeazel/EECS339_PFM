@@ -704,7 +704,9 @@ if ($action eq 'stock'){
 
     if (!$run){
     print "<h2>Stock information for $symbol</h2>";
-    print start_form(-name=>'Record new data', -method =>'POST'),
+    print "<img src='http://murphy.wot.eecs.northwestern.edu/~cjp794/pfm/plot_stock.pl?type=plot&symbol=$symbol'>";
+    print "<h3>Select date range for past data</h3>";
+    print start_form(-name=>'Select data dates', -method =>'POST'),
         "Start date:",
         "<input name = 'start' type='date'>",
         p,
@@ -721,9 +723,9 @@ if ($action eq 'stock'){
       my $start = param('start');
       my $end = param('end');
       my $output = `./get_data.pl --close --from="$start" --to="$end" AAPL`;
-      my $image = `./get_data.pl --close --from="$start" --to="$end" --plot AAPL`;
-      print "<pre>", $image, "</pre>";
-      print "<img src='http:/murphy.wot.eecs.northwestern.edu/~cjp794/pfm/plot_stock.pl&type=plot&symbol=AAPL'>"; 
+      #my $image = `./get_data.pl --close --from="$start" --to="$end" --plot AAPL`;
+      #print "<pre>", $image, "</pre>";
+      #print "<img src='http:/murphy.wot.eecs.northwestern.edu/~cjp794/pfm/plot_stock.pl&type=plot&symbol=AAPL'>"; 
       print "Timestamp      Close Price";
       print "<pre>", $output, "</pre>";  
     }  

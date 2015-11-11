@@ -333,8 +333,8 @@ if ($action ne "login") {
 
     # Header
     print h2('Portfolio Manager 2K15'),
-    "Welcome, $user\!\t",
-    "<a href=\"pfm.pl?act=logout&run=1\">Log Out</a></p>",
+    hr,
+    "<p>Welcome, $user\! &mdash; <a href=\"pfm.pl?act=logout&run=1\">Log Out</a></p>",
     hr;
 }
 
@@ -440,7 +440,7 @@ if($action eq "covar-matrix") {
     my $pid = PortfolioID($pname);
 
     print "<h3>Covariance Matrix</h3>";
-    print "Select a date and time:", p;
+    print "Select date range:", p;
     print start_form(-name=>'Record new data', -method =>'POST'),
         "Start ",
         "<input name = 'start' type='date'>",
@@ -724,14 +724,15 @@ if ($action eq 'stock'){
     my $format = param("format");
     $format = "table" if !defined($format);
     
-    print "<h2>Stock Information for $symbol</h2>";
+    print "<h3>Stock Information for $symbol</h3>";
     print "<img src='http://murphy.wot.eecs.northwestern.edu/~ndh242/pfm/plot_stock.pl?type=plot&symbol=$symbol'>";
-    print "<h3>Select date range for past data</h3>";
+    print "<h3>Past Data</h3>";
+    print "Select date range:", p;
     print start_form(-name=>'Select data dates', -method =>'POST'),
-    "Start date:",
+    "Start ",
     "<input name = 'start' type='date'>",
     p,
-    "End Date:",
+    "End ",
     "<input name = 'end' type='date'>",
     hidden(-name=>'run',-default=>['1']),
     hidden(-name=>'act',-default=>['stock']),
@@ -774,6 +775,10 @@ sub RecordPrice{
     };
     return $@;
 }
+
+print hr,
+    "<p>&copy;2015 Nicholas Hall, Christopher Pierce, and Nathan Yeazel &mdash; <a href=\"docs\">Documentation</a></p>";
+
 print "</center>";
 
 if ($debug) {

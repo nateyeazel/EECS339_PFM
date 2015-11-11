@@ -616,6 +616,39 @@ if ($action eq "record-price"){
     }
 }
 
+if ($action eq 'stock'){
+    my $pname = param("pname");
+    my $pid = PortfolioID($pname);
+    my $format = param("format");
+    my $symbol = param("symbol");
+    $format = "table" if !defined($format);
+
+    if (!$run){
+    print "<h2>Stock information for $symbol</h2>";
+    print start_form(-name=>'Record new data', -method =>'POST'),
+        "Start date:",
+        "<input name = 'start' type='date'>",
+        p,
+        "End Date:",
+        "<input name = 'end' type='date'>",
+        hidden(-name=>'run',-default=>['1']),
+        hidden(-name=>'act',-default=>['stock']),
+        p,
+        submit(-name=> 'select-dates', -value=>'Select Date Range'),
+        end_form;
+    }
+    elsif(param('select-dates')){
+      my $start = param('start');
+      my $end = param('end');
+      my $output = `./get_data.pl --close --from="$start" --to="$end" AAPL`;
+      my $image = `./get_data.pl --close --from="$start" --to="$end" --plot AAPL`;
+      print "<pre>", $image, "</pre>";
+      print "<img src='http:/murphy.wot.eecs.northwestern.edu/~cjp794/pfm/plot_stock.pl&type=plot&symbol=AAPL'>"; 
+      print "Timestamp      Close Price";
+      print "<pre>", $output, "</pre>";  
+    }  
+}
+
 sub RecordPrice{
     my ($symb, $high, $low, $close, $open, $volume) = @_;
     my @rows;
@@ -1118,6 +1151,12 @@ BEGIN {
         $ENV{ORACLE_SID}="CS339";
         $ENV{LD_LIBRARY_PATH}=$ENV{ORACLE_HOME}."/lib";
         $ENV{BEGIN_BLOCK} = 1;
+        $ENV{PORTF_DBMS}="oracle";
+        $ENV{PORTF_DB}="cs339";
+        $ENV{PORTF_DBUSER}="ndh242";
+        $ENV{PORTF_DBPASS}="zo06aFIky";
+
+        $ENV{PATH} = $ENV{PATH}.":."; 
         exec 'env',cwd().'/'.$0,@ARGV;
     }
 }

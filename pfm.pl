@@ -2,15 +2,16 @@
 
 #
 #
-# pfm.pl (Red, White, and Blue)
+# pfm.pl (Portfolio Manager 2K15)
 #
 #
-# Example code for EECS 339, Northwestern University
+# Adapted from rwb.pl example code for EECS 339, Northwestern University
 #
 # Peter Dinda
 #
 #
 # Modified for Project 2
+#
 # Nicholas Hall, Nathan Yeazel, and Christopher Pierce
 #
 #
@@ -135,6 +136,11 @@ if (defined(param("act"))) {
     }
 } else {
     $action="base";
+    $run = 1;
+}
+
+if (($action eq "portfolio" or $action eq "deposit-withdraw" or $action eq "buy-sell" or $action eq "record-prics") and (!defined(param("pname")) or param("pname") eq '')) {
+    $action = "base";
     $run = 1;
 }
 
@@ -364,8 +370,6 @@ if ($action eq "base") {
     }
 }
 
-print "</center>";
-
 #
 # The main line is finished at this point.
 # The remainder includes utilty and other functions
@@ -412,6 +416,8 @@ if ($action eq "portfolio") {
             print $str;
         }
     }
+    
+    print p;
 
     # Cash Balance
     my $format1 = param("format");
@@ -423,7 +429,7 @@ if ($action eq "portfolio") {
 
     print "</p><a href=\"pfm.pl?act=deposit-withdraw&pname=$pname\">Deposit/Withdraw Cash</a></p>";
     print "</p><a href=\"pfm.pl?act=buy-sell&pname=$pname\">Buy/Sell Stock</a></p>";
-    print "</p><a href=\"pfm.pl?act=record-price\">Record Stock Price</a></p>";
+    print "</p><a href=\"pfm.pl?act=record-price&pname=$pname\">Record Stock Price</a></p>";
 
     print hr,
     "<p><a href=\"pfm.pl?act=base&run=1\">Return</a></p>";
@@ -439,7 +445,7 @@ if ($action eq "deposit-withdraw") {
     if (!$run) {
         # Cash Balance
         my ($str,$error) = CashBalance($format,$pid);
-        print h2('Deposit/Withdraw Stock'), p;
+        print h3('Deposit/Withdraw Stock'), p;
         if (!$error) {
             print $str;
         }
@@ -463,9 +469,9 @@ if ($action eq "deposit-withdraw") {
             print $str;
         }
         if ($error1) {
-            print p, "Couldn't deposit into account: $error";
+            print p, "Error: Couldn't deposit \$$amount\ into account.";
         } else {
-            print p, "Deposited $amount\ into cash account.\n";
+            print p, "Deposited \$$amount\ into cash account.\n";
         }
     } elsif (param('withdraw')) {
         my $amount=param('amount');
@@ -477,9 +483,9 @@ if ($action eq "deposit-withdraw") {
             print $str;
         }
         if ($error2) {
-            print p, "Couldn't withdraw from account: $error";
+            print p, "Error: Couldn't withdraw \$$amount\ from account.";
         } else {
-            print p, "Withdrew $amount\ from cash account.\n";
+            print p, "Withdrew \$$amount\ from cash account.\n";
         }
 
     }
@@ -493,25 +499,20 @@ if($action eq "buy-sell"){
     my $pname = param("pname");
     my $pid = PortfolioID($pname);
     my $format = param("format");
+
     $format = "table" if !defined($format);
 
     if (!$run) {
         # Portfolio Holdings Table
-        my $format = param("format");
-        $format = "linked-table" if !defined($format);
-        my ($str,$error) = PortfolioHoldings($pname, $pid, $format);
-        print h2('Buy/Sell Stock'), p;
+        my ($str,$error) = PortfolioHoldings($pname, $pid, "table");
+        print h3('Buy/Sell Stock'), p;
         if (!$error) {
-            if ($format eq "linked-table") {
-                print "$str";
-            } else {
-                print $str;
-            }
+            print "$str";
         }
 
         print start_form(-name=>'Buy Stocks', -method=>'POST'),
             p,
-            "Stock Name ",
+            "Symbol ",
             textfield(-name=>'stock-symbol'),
             p,
             "Amount ",
@@ -526,49 +527,73 @@ if($action eq "buy-sell"){
     } elsif(param('buy')){
         my $symb = param('stock-symbol');
         my $amount = param('stocks-amount');
-        my $error1 = BuyStock($amount, $symb, $pid);
-        # Portfolio Holdings Table
-        my $format = param("format");
-        $format = "linked-table" if !defined($format);
-        my ($str,$error) = PortfolioHoldings($pname, $pid, $format);
-        print h2('Buy/Sell Stock'), p;
-        if (!$error) {
-            if ($format eq "linked-table") {
+        my $stockPrice = getRecentPrice($symb);
+        my $cash_balance = CashBalance('number', $pid);
+        my $cost = $stockPrice * $amount;
+        if($cost <= 0){
+            # Portfolio Holdings Table
+            my ($str,$error) = PortfolioHoldings($pname, $pid, "table");
+            print h2('Buy/Sell Stock'), p;
+            if (!$error) {
                 print "$str";
+            }
+            print p, "Error: Invalid purchase.";
+        } elsif ($cost > $cash_balance){
+            # Portfolio Holdings Table
+            my ($str,$error) = PortfolioHoldings($pname, $pid, "table");
+            print h2('Buy/Sell Stock'), p;
+            if (!$error) {
+                print "$str";
+            }
+            print p, "Error: Insufficient funds to purchase $amount shares of $symb at \$$stockPrice\/share with a cash balance of \$$cash_balance\.";
+        } else {
+            my $error1 = CashWithdraw($pid, $amount * $stockPrice);
+            my $error2 = BuyStock($amount, $symb, $pid);
+            # Portfolio Holdings Table
+            my ($str,$error) = PortfolioHoldings($pname, $pid, "table");
+            print h2('Buy/Sell Stock'), p;
+            if (!$error) {
+                print "$str";
+            }
+            if ($error2)
+            {
+                print p, "Error: Purchase failed.";
             } else {
-                print $str;
+                print p, "Successfully purchased $amount shares of $symb for \$$cost\.";
             }
         }
-        if ($error1)
-        {
-            print p, "Couldn't buy stock: $error";
-        } else {
-            print "Successfully purchased $amount shares of $symb/.";
-        }
-    } elsif(param('buy')){
+
+    } elsif(param('sell')){
         my $symb = param('stock-symbol');
         my $amount = param('stocks-amount');
-        my $error1 = SellStock($amount, $symb, $pid);
-        # Portfolio Holdings Table
-        my $format = param("format");
-        $format = "linked-table" if !defined($format);
-        my ($str,$error) = PortfolioHoldings($pname, $pid, $format);
-        print h2('Buy/Sell Stock'), p;
-        if (!$error) {
-            if ($format eq "linked-table") {
+        my $stockPrice = getRecentPrice($symb);
+        my $cost = $stockPrice * $amount;
+        if ($cost <= 0) {
+            # Portfolio Holdings Table
+            my ($str,$error) = PortfolioHoldings($pname, $pid, "table");
+            print h2('Buy/Sell Stock'), p;
+            if (!$error) {
                 print "$str";
+            }
+            print p, "Error: Invalid sale.";
+        } else {
+            my $error2 = SellStock($amount, $symb, $pid);
+            # Portfolio Holdings Table
+            my ($str,$error) = PortfolioHoldings($pname, $pid, "table");
+            print h2('Buy/Sell Stock'), p;
+            if (!$error) {
+                print "$str";
+            }
+            if ($error2)
+            {
+                print p, "Error: Sale failed.";
             } else {
-                print $str;
+                my $error1 = CashDeposit($pid, $amount * $stockPrice);
+                print p, "Successfully sold $amount shares of $symb for \$$cost\.";
             }
         }
-        if ($error1)
-        {
-            print p, "Couldn't buy stock: $error";
-        } else {
-            print "Successfully purchased $amount shares of $symb/.";
-        }
     }
-    
+
     print hr,
         "<p><a href=\"pfm.pl?act=portfolio&pname=$pname\">Return</a></p>";
 }
@@ -578,24 +603,31 @@ if ($action eq "record-price"){
     my $pid = PortfolioID($pname);
     my $format = param("format");
     $format = "table" if !defined($format);
-    
+
     if (!$run){
         print start_form(-name=>'Record new data', -method =>'POST'),
-        "Stock Name ",
+        h3('Record Stock Price'),
+        "Symbol ",
         textfield(-name=>'stock-symbol'),
         p,
-        "High",
+        "High ",
         textfield(-name=>'high-price'),
-        "Low",
+        p,
+        "Low ",
         textfield(-name=>'low-price'),
-        "Close",
+        p,
+        "Close ",
         textfield(-name=>'close-price'),
-        "Open",
+        p,
+        "Open ",
         textfield(-name=>'open-price'),
-        "Volume",
+        p,
+        "Volume ",
         textfield(-name=>'volume-traded'),
         hidden(-name=>'run',-default=>['1']),
         hidden(-name=>'act',-default=>['record-price']),
+        hidden(-name=>'pname',-default=>['$pname']),
+        p,
         submit(-name=> 'add-record', -value=>'Submit Record'),
         end_form;
     }
@@ -614,6 +646,9 @@ if ($action eq "record-price"){
             print "Record added successfully";
         }
     }
+    
+    print hr,
+        "<p><a href=\"pfm.pl?act=portfolio&pname=$pname\">Return</a></p>";
 }
 
 if ($action eq 'stock'){
@@ -658,6 +693,7 @@ sub RecordPrice{
     };
     return $@;
 }
+print "</center>";
 
 if ($debug) {
     print hr, p, h2('Debugging Output');
@@ -732,11 +768,11 @@ sub PortfolioHoldings {
     } else {
         if ($format eq "linked-table") {
             return (MakeLinkedTable("portfolio_holdings","2D",
-            ["Stock", "Shares"],"stock&pid=$pname&symbol=",
+            ["Stock", "Shares"],"stock&pname=$pname&symbol=",
             @rows),$@);
         } elsif ($format eq "table") {
             return (MakeTable("portfolio_holdings","2D",
-            ["Portfolios"],
+            ["Portfolios", "Shares"],
             @rows),$@);
         } else {
             return (MakeRaw("portfolio_holdings","2D",@rows),$@);
@@ -746,16 +782,26 @@ sub PortfolioHoldings {
 
 sub CashDeposit {
     my ($pid, $amount) = @_;
-    eval { ExecSQL($dbuser, $dbpasswd, "update pfm_portfolios set cash = cash + ? where portfolio_id=?",undef,$amount,$pid);
+    my @errors;
+    eval { @errors = ExecSQL($dbuser, $dbpasswd, "update pfm_portfolios set cash = cash + ? where portfolio_id=?",undef,$amount,$pid);
     };
-    return @;
+    if ($@) {
+        return (undef,$@);
+    } else {
+        return @;
+    }
 }
 
 sub CashWithdraw {
     my ($pid, $amount) = @_;
-    eval { ExecSQL($dbuser, $dbpasswd, "update pfm_portfolios set cash = cash - ? where portfolio_id=?",undef,$amount,$pid);
+    my @errors;
+    eval { @errors = ExecSQL($dbuser, $dbpasswd, "update pfm_portfolios set cash = cash - ? where portfolio_id=?",undef,$amount,$pid);
     };
-    return @;
+    if ($@) {
+        return (undef,$@);
+    } else {
+        return @;
+    }
 }
 
 sub CashBalance {
@@ -771,8 +817,11 @@ sub CashBalance {
             return (MakeTable("cash_balance","2D",
             ["Current Cash Balance"],
             @rows),$@);
-        } else {
-            return (MakeRaw("cash_balance","2D",@rows),$@);
+        } elsif ($format eq 'number') {
+            foreach my $row (@rows)
+            {
+                return @$row[0];
+            }
         }
     }
 }
@@ -799,9 +848,21 @@ sub BuyStock {
     my @rows;
     my $price = getRecentPrice($symb);
     eval{
-        @rows = ExecSQL($dbuser, $dbpasswd, "insert into pfm_portfolioHoldings(portfolio_id, symbol, num_shares, timestamp, purchase_price) values (?, ?, ?, ?, ?)", undef, $pid, $symb, $amount, $currentTime, $price)
+        @rows = ExecSQL($dbuser, $dbpasswd, "select num_shares from pfm_portfolioHoldings where portfolio_id = ? and symbol = ?", undef, $pid, $symb)
     };
-
+    if ($@) {
+        return (undef,$@);
+    } elsif ($rows[0]>0) {
+        eval{
+            @rows = ExecSQL($dbuser, $dbpasswd, "update pfm_portfolioHoldings set num_shares = num_shares + ? where portfolio_id = ? and symbol = ?", undef, $amount, $pid, $symb)
+        };
+    } else {
+        
+        eval{
+            @rows = ExecSQL($dbuser, $dbpasswd, "insert into pfm_portfolioHoldings(portfolio_id, symbol, num_shares, timestamp, purchase_price) values (?, ?, ?, ?, ?)", undef, $pid, $symb, $amount, $currentTime, $price)
+        };
+    }
+    
     return @;
 }
 
@@ -813,8 +874,11 @@ sub SellStock {
     eval{
         @rows = ExecSQL($dbuser, $dbpasswd, "update pfm_portfolioHoldings set num_shares = num_shares - ? where portfolio_id = ? and symbol = ?", undef, $amount, $pid, $symb)
     };
-    
-    return @;
+    if ($@) {
+        return (undef,$@);
+    } else {
+        return @;
+    }
 }
 
 sub getStocks {
@@ -828,6 +892,17 @@ sub getStocks {
     } else {
         return (MakeRaw('stock-list', '2D',@rows), $@);
     }
+}
+
+
+sub RecordPrice{
+    my ($symb, $high, $low, $close, $open, $volume) = @_;
+    my @rows;
+    my $date= time();
+    eval{
+        @rows= ExecSQL($dbuser, $dbpasswd, "insert into pfm_stocksData(symbol, timestamp, high, low, close, open, volume) values (?, ?, ?, ?, ?, ?, ?)", undef, $symb, $date, $high, $low, $close, $open, $volume);
+    };
+    return $@;
 }
 #
 # Add a portfolio to a user's account

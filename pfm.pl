@@ -430,11 +430,50 @@ if ($action eq "portfolio") {
     print "</p><a href=\"pfm.pl?act=deposit-withdraw&pname=$pname\">Deposit/Withdraw Cash</a></p>";
     print "</p><a href=\"pfm.pl?act=buy-sell&pname=$pname\">Buy/Sell Stock</a></p>";
     print "</p><a href=\"pfm.pl?act=record-price&pname=$pname\">Record Stock Price</a></p>";
+    print "</p><a href='pfm.pl?act=covar-matrix&pname=$pname'>See Covariance Matrix</a></p>";
 
+    
+    
+    
     print hr,
     "<p><a href=\"pfm.pl?act=base&run=1\">Return</a></p>";
 }
 
+if($action eq "covar-matrix") {
+    my $pname = param("pname");
+    my $pid = PortfolioID($pname);
+
+    print "<h3>Covariance matrix</h3>";
+    print "Select a date and time";
+    print start_form(-name=>'Record new data', -method =>'POST'),
+        "Start date:",
+        "<input name = 'start' type='date'>",
+        p,
+        "End Date:",
+        "<input name = 'end' type='date'>",
+        hidden(-name=>'run',-default=>['1']),
+        hidden(-name=>'act',-default=>['portfolio']),
+        hidden(-name=>'pname',-default=>['$pname']),
+        p,
+        submit(-name=> 'select-covar-dates', -value=>'Select Date Range'),
+        end_form;
+
+    if(!$run){
+        
+    } elsif(param('select-covar-dates')){
+        my $symbols = PortolioSymbols($pid);
+        my $symbolsString = '';
+        my $start = param('start');
+        my $end = param('end');
+        while ($symbols =~ /(\w+)\n/g){
+            $symbolsString .= $1;
+            $symbolsString .= ' ';
+        }
+        my $results = `./get_covar.pl --field1=close --field2=close --from=$start --to=$end $symbolsString`;
+        print "<pre>", $results, "</pre>"; 
+    }
+    
+}
 
 if ($action eq "deposit-withdraw") {
     my $pname = param("pname");
@@ -682,6 +721,7 @@ if ($action eq 'stock'){
       print "Timestamp      Close Price";
       print "<pre>", $output, "</pre>";  
     }  
+    "<p><a href=\"pfm.pl?act=portfolio&pname=$pname\">Return</a></p>";
 }
 
 sub RecordPrice{
@@ -778,6 +818,16 @@ sub PortfolioHoldings {
             return (MakeRaw("portfolio_holdings","2D",@rows),$@);
         }
     }
+}
+
+sub PortolioSymbols {
+    my($pid) = @_;
+    my @rows;
+
+    eval{
+        @rows = ExecSQL($dbuser, $dbpasswd, "select symbol from pfm_portfolioHoldings where portfolio_id=?",undef,$pid);
+    };
+    return (MakeRaw("portfolio_symbols", '2D', @rows));
 }
 
 sub CashDeposit {

@@ -54,7 +54,7 @@ if (!defined($type) || $type eq "text" || !($type eq "plot") ) {
 }
 
 
-my @rows = ExecStockSQL("2D","select timestamp, close from ".GetStockPrefix()."StocksDaily where symbol=? order by timestamp",$symbol);
+my @rows = ExecStockSQL("2D","select timestamp, close from allStockData where symbol=? order by timestamp",$symbol);
 
 if ($type eq "text") { 
   print "<pre>";

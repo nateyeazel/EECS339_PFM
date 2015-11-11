@@ -448,15 +448,13 @@ if($action eq "covar-matrix") {
         "End ",
         "<input name = 'end' type='date'>",
         hidden(-name=>'run',-default=>['1']),
-        hidden(-name=>'act',-default=>['portfolio']),
+        hidden(-name=>'act',-default=>['covar-matrix']),
         hidden(-name=>'pname',-default=>['$pname']),
         p,
         submit(-name=> 'select-covar-dates', -value=>'Select Date Range'),
         end_form;
 
-    if(!$run){
-        
-    } elsif(param('select-covar-dates')){
+    if($run and param('select-covar-dates')){
         my $symbols = PortolioSymbols($pid);
         my $symbolsString = '';
         my $start = param('start');
@@ -466,7 +464,7 @@ if($action eq "covar-matrix") {
             $symbolsString .= ' ';
         }
         my $results = `./get_covar.pl --field1=close --field2=close --from=$start --to=$end $symbolsString`;
-        print "<pre>", $results, "</pre>"; 
+        print "<pre>", $results, "</pre>";
     }
     
     print hr,
@@ -720,31 +718,30 @@ if ($action eq "record-price"){
 if ($action eq 'stock'){
     my $pname = param("pname");
     my $pid = PortfolioID($pname);
-    my $format = param("format");
-    $format = "table" if !defined($format);
-
     my $symbol = param("symbol");
     my $cash = CashBalance('number', $pid);
     my $recentPrice = getRecentPrice($symbol);
-
+    my $format = param("format");
     $format = "table" if !defined($format);
-
-    if (!$run){
+    
     print "<h2>Stock Information for $symbol</h2>";
     print "<img src='http://murphy.wot.eecs.northwestern.edu/~ndh242/pfm/plot_stock.pl?type=plot&symbol=$symbol'>";
     print "<h3>Select date range for past data</h3>";
     print start_form(-name=>'Select data dates', -method =>'POST'),
-        "Start date:",
-        "<input name = 'start' type='date'>",
-        p,
-        "End Date:",
-        "<input name = 'end' type='date'>",
-        hidden(-name=>'run',-default=>['1']),
-        hidden(-name=>'act',-default=>['stock']),
-        hidden(-name=>'pname',-default=>['$pname']),
-        p,
-        submit(-name=> 'select-dates', -value=>'Select Date Range'),
-        end_form;
+    "Start date:",
+    "<input name = 'start' type='date'>",
+    p,
+    "End Date:",
+    "<input name = 'end' type='date'>",
+    hidden(-name=>'run',-default=>['1']),
+    hidden(-name=>'act',-default=>['stock']),
+    hidden(-name=>'pname',-default=>['$pname']),
+    hidden(-name=>'symbol',-default=>['$symbol']),
+    p,
+    submit(-name=> 'select-dates', -value=>'Select Date Range'),
+    end_form;
+    
+    if (!$run){
     }
     elsif(param('select-dates')){
       my $start = param('start');
@@ -753,7 +750,7 @@ if ($action eq 'stock'){
       #my $image = `./get_data.pl --close --from="$start" --to="$end" --plot AAPL`;
       #print "<pre>", $image, "</pre>";
       #print "<img src='http:/murphy.wot.eecs.northwestern.edu/~ndh242/pfm/plot_stock.pl&type=plot&symbol=AAPL'>"; 
-      print "Timestamp      Close Price";
+      print "Timestamp &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Close Price";
       print "<pre>", $output, "</pre>";  
     }  
 
@@ -771,6 +768,9 @@ sub RecordPrice{
     my $date= time();
     eval{
         @rows= ExecSQL($dbuser, $dbpasswd, "insert into pfm_stocksData(symbol, timestamp, high, low, close, open, volume) values (?, ?, ?, ?, ?, ?, ?)", undef, $symb, $date, $high, $low, $close, $open, $volume);
+    };
+    eval{
+        ExecSQL($dbuser, $dbpasswd, "create or replace view allStockData as select * from cs339.StocksDaily union select * from pfm_stocksData;", undef);
     };
     return $@;
 }
@@ -1340,7 +1340,6 @@ BEGIN {
         $ENV{PORTF_DB}="cs339";
         $ENV{PORTF_DBUSER}="ndh242";
         $ENV{PORTF_DBPASS}="zo06aFIky";
-
         $ENV{PATH} = $ENV{PATH}.":."; 
         exec 'env',cwd().'/'.$0,@ARGV;
     }

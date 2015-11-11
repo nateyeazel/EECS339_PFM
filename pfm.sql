@@ -34,9 +34,9 @@ create table pfm_stocksData(
     primary key(symbol, timestamp)
 );
 create view allStockData as
-    select symbol, timestamp, close from cs339.StocksDaily
+    select * from cs339.StocksDaily
     union
-    select symbol, timestamp, close from pfm_stocksData;
+    select * from pfm_stocksData;
 create table pfm_portfolioStats(
     portfolio_id number not null primary key references pfm_portfolios(portfolio_id),
     statistic number not null

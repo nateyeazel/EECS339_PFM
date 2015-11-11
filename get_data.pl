@@ -48,7 +48,7 @@ push @fields, "volume" if $vol;
 
 my $sql;
 
-$sql = "select " . join(",",@fields) . " from ".GetStockPrefix()."StocksDaily";
+$sql = "select " . join(",",@fields) . " from allStockData";
 $sql.= " where symbol = '$symbol'";
 $sql.= " and timestamp >= $from" if $from;
 $sql.= " and timestamp <= $to" if $to;

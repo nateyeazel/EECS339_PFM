@@ -36,7 +36,7 @@ for ($i=0;$i<=$#symbols;$i++) {
     
 #first, get means and vars for the individual columns that match
     
-    $sql = "select count(*),avg(l.$field1),stddev(l.$field1),avg(r.$field2),stddev(r.$field2) from ".GetStockPrefix()."StocksDaily l join ".GetStockPrefix()."StocksDaily r on l.timestamp= r.timestamp where l.symbol='$s1' and r.symbol='$s2'";
+    $sql = "select count(*),avg(l.$field1),stddev(l.$field1),avg(r.$field2),stddev(r.$field2) from allStockData l join allStockData r on l.timestamp= r.timestamp where l.symbol='$s1' and r.symbol='$s2'";
     $sql.= " and l.timestamp>=$from" if $from;
     $sql.= " and l.timestamp<=$to" if $to;
     

@@ -573,6 +573,59 @@ if($action eq "buy-sell"){
         "<p><a href=\"pfm.pl?act=portfolio&pname=$pname\">Return</a></p>";
 }
 
+if ($action eq "record-price"){
+    my $pname= param("pname");
+    my $pid = PortfolioID($pname);
+    my $format = param("format");
+    $format = "table" if !defined($format);
+    
+    if (!$run){
+        print start_form(-name=>'Record new data', -method =>'POST'),
+        "Stock Name ",
+        textfield(-name=>'stock-symbol'),
+        p,
+        "High",
+        textfield(-name=>'high-price'),
+        "Low",
+        textfield(-name=>'low-price'),
+        "Close",
+        textfield(-name=>'close-price'),
+        "Open",
+        textfield(-name=>'open-price'),
+        "Volume",
+        textfield(-name=>'volume-traded'),
+        hidden(-name=>'run',-default=>['1']),
+        hidden(-name=>'act',-default=>['record-price']),
+        submit(-name=> 'add-record', -value=>'Submit Record'),
+        end_form;
+    }
+    elsif(param('add-record')){
+        my $symb= param('stock-symbol');
+        my $high= param('high-price');
+        my $low= param('low-price');
+        my $close = param('close-price');
+        my $open = param('open-price');
+        my $volume= param('volume-traded');
+        my $error= RecordPrice($symb, $high, $low, $close, $open, $volume);
+        if ($error){
+            print "Couldn't add record :$error";
+        }
+        else {
+            print "Record added successfully";
+        }
+    }
+}
+
+sub RecordPrice{
+    my ($symb, $high, $low, $close, $open, $volume) = @_;
+    my @rows;
+    my $date= time();
+    eval{
+        @rows= ExecSQL($dbuser, $dbpasswd, "insert into pfm_stocksData(symbol, timestamp, high, low, close, open, volume) values (?, ?, ?, ?, ?, ?, ?)", undef, $symb, $date, $high, $low, $close, $open, $volume);
+    };
+    return $@;
+}
+
 if ($debug) {
     print hr, p, h2('Debugging Output');
     print h3('Parameters');

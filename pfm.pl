@@ -381,7 +381,7 @@ if ($action eq "create-portfolio") {
         # Generate the invite form.
         #
         print start_form(-name=>'CreatePortfolio'),
-        h2('Create New Portfolio'),
+        h3('Create New Portfolio'),
         "Portfolio Name ", textfield(-name=>'portfolio-name'),
         p,
         hidden(-name=>'run',-default=>['1']),
@@ -429,7 +429,7 @@ if ($action eq "portfolio") {
     print "</p><a href=\"pfm.pl?act=deposit-withdraw&pname=$pname\">Deposit/Withdraw Cash</a></p>";
     print "</p><a href=\"pfm.pl?act=buy-sell&pname=$pname\">Buy/Sell Stock</a></p>";
     print "</p><a href=\"pfm.pl?act=record-price&pname=$pname\">Record Stock Price</a></p>";
-    print "</p><a href='pfm.pl?act=covar-matrix&pname=$pname'>See Covariance Matrix</a></p>";
+    print "</p><a href='pfm.pl?act=covar-matrix&pname=$pname'>Calculate Covariance Matrix</a></p>";
 
     print hr,
     "<p><a href=\"pfm.pl?act=base&run=1\">Return</a></p>";
@@ -439,7 +439,7 @@ if($action eq "covar-matrix") {
     my $pname = param("pname");
     my $pid = PortfolioID($pname);
 
-    print "<h3>Covariance Matrix</h3>";
+    print "<h3>Calculate Covariance Matrix</h3>";
     print "Select date range:", p;
     print start_form(-name=>'Record new data', -method =>'POST'),
         "Start ",
@@ -480,7 +480,7 @@ if ($action eq "deposit-withdraw") {
     if (!$run) {
         # Cash Balance
         my ($str,$error) = CashBalance($format,$pid);
-        print h3('Deposit/Withdraw Stock'), p;
+        print h3('Deposit/Withdraw Cash'), p;
         if (!$error) {
             print $str;
         }

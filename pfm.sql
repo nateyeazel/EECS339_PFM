@@ -8,7 +8,8 @@ create table pfm_portfolios(
     user_id varchar2(64) not null references pfm_users(user_name),
     portfolio_name varchar2(64) not null,
     cash number,
-    primary key(portfolio_name, user_id)
+    primary key(portfolio_name, user_id),
+    CONSTRAINT no_debt CHECK (cash >= 0)
 );
 create table pfm_portfolioHoldings(
 	portfolio_id number not null references pfm_portfolios(portfolio_id),
@@ -16,7 +17,8 @@ create table pfm_portfolioHoldings(
 	num_shares number not null,
     timestamp number not null,
 	purchase_price number not null,
-	primary key(portfolio_id, symbol)
+	primary key(portfolio_id, symbol),
+    CONSTRAINT no_shorts CHECK (num_shares >= 0)
 );
 create table pfm_stocks(
 	symbol varchar2(16) not null primary key

@@ -435,26 +435,33 @@ if ($action eq "deposit-withdraw") {
     my $pid = PortfolioID($pname);
     my $format = param("format");
     $format = "table" if !defined($format);
-    # Cash Balance
-    my ($str,$error) = CashBalance($format,$pid);
-    print h2('Deposit/Withdraw'), p;
-    if (!$error) {
-        print $str;
-    }
 
     if (!$run) {
+        # Cash Balance
+        my ($str,$error) = CashBalance($format,$pid);
+        print h2('Deposit/Withdraw Stock'), p;
+        if (!$error) {
+            print $str;
+        }
         print start_form(-name=>'DepositWithdraw', -method=>'POST'),
             "Amount ",
             textfield(-name=>'amount'),
             p,
             hidden(-name=>'run',-default=>['1']),
             hidden(-name=>'act',-default=>['deposit-withdraw']),
+            hidden(-name=>'pname',-default=>['$pname']),
             submit(-name => 'deposit', -value => 'Deposit'),
             submit(-name => 'withdraw', -value => 'Withdraw'),
             end_form;
     } elsif (param('deposit')) {
         my $amount=param('amount');
         my $error1=CashDeposit($pid, $amount);
+        # Cash Balance
+        my ($str,$error) = CashBalance($format,$pid);
+        print h2('Deposit/Withdraw'), p;
+        if (!$error) {
+            print $str;
+        }
         if ($error1) {
             print p, "Couldn't deposit into account: $error";
         } else {
@@ -463,6 +470,12 @@ if ($action eq "deposit-withdraw") {
     } elsif (param('withdraw')) {
         my $amount=param('amount');
         my $error2=CashWithdraw($pid, $amount);
+        # Cash Balance
+        my ($str,$error) = CashBalance($format,$pid);
+        print h2('Deposit/Withdraw'), p;
+        if (!$error) {
+            print $str;
+        }
         if ($error2) {
             print p, "Couldn't withdraw from account: $error";
         } else {
@@ -472,7 +485,7 @@ if ($action eq "deposit-withdraw") {
     }
 
     print hr,
-    "<p><a href=\"pfm.pl?act=base&run=1\">Return</a></p>";
+    "<p><a href=\"pfm.pl?act=portfolio&pname=$pname\">Return</a></p>";
 }
 
 #For when you buy and sell stocks
@@ -483,7 +496,21 @@ if($action eq "buy-sell"){
     $format = "table" if !defined($format);
 
     if (!$run) {
+        # Portfolio Holdings Table
+        my $format = param("format");
+        $format = "linked-table" if !defined($format);
+        my ($str,$error) = PortfolioHoldings($pname, $pid, $format);
+        print h2('Buy/Sell Stock'), p;
+        if (!$error) {
+            if ($format eq "linked-table") {
+                print "$str";
+            } else {
+                print $str;
+            }
+        }
+
         print start_form(-name=>'Buy Stocks', -method=>'POST'),
+            p,
             "Stock Name ",
             textfield(-name=>'stock-symbol'),
             p,
@@ -491,13 +518,59 @@ if($action eq "buy-sell"){
             textfield(-name=> 'stocks-amount'),
             hidden(-name=>'run',-default=>['1']),
             hidden(-name=>'act',-default=>['buy-sell']),
-            submit(-name => 'buy', -value => 'Submit Purchase'),
+            hidden(-name=>'pname',-default=>['$pname']),
+            p,
+            submit(-name => 'buy', -value => 'Buy'),
+            submit(-name => 'sell', -value => 'Sell'),
             end_form;
     } elsif(param('buy')){
         my $symb = param('stock-symbol');
         my $amount = param('stocks-amount');
-        my $error = BuyStock($amount, $symb, $pid);
+        my $error1 = BuyStock($amount, $symb, $pid);
+        # Portfolio Holdings Table
+        my $format = param("format");
+        $format = "linked-table" if !defined($format);
+        my ($str,$error) = PortfolioHoldings($pname, $pid, $format);
+        print h2('Buy/Sell Stock'), p;
+        if (!$error) {
+            if ($format eq "linked-table") {
+                print "$str";
+            } else {
+                print $str;
+            }
+        }
+        if ($error1)
+        {
+            print p, "Couldn't buy stock: $error";
+        } else {
+            print "Successfully purchased $amount shares of $symb/.";
+        }
+    } elsif(param('buy')){
+        my $symb = param('stock-symbol');
+        my $amount = param('stocks-amount');
+        my $error1 = SellStock($amount, $symb, $pid);
+        # Portfolio Holdings Table
+        my $format = param("format");
+        $format = "linked-table" if !defined($format);
+        my ($str,$error) = PortfolioHoldings($pname, $pid, $format);
+        print h2('Buy/Sell Stock'), p;
+        if (!$error) {
+            if ($format eq "linked-table") {
+                print "$str";
+            } else {
+                print $str;
+            }
+        }
+        if ($error1)
+        {
+            print p, "Couldn't buy stock: $error";
+        } else {
+            print "Successfully purchased $amount shares of $symb/.";
+        }
     }
+    
+    print hr,
+        "<p><a href=\"pfm.pl?act=portfolio&pname=$pname\">Return</a></p>";
 }
 
 if ($debug) {
@@ -587,14 +660,14 @@ sub PortfolioHoldings {
 
 sub CashDeposit {
     my ($pid, $amount) = @_;
-    eval { ExecSQL($dbuser, $dbpasswd, "update pfm_portfolios set cash=cash+? where portfolio_id=?",undef,$amount,$pid);
+    eval { ExecSQL($dbuser, $dbpasswd, "update pfm_portfolios set cash = cash + ? where portfolio_id=?",undef,$amount,$pid);
     };
     return @;
 }
 
 sub CashWithdraw {
     my ($pid, $amount) = @_;
-    eval { ExecSQL($dbuser, $dbpasswd, "update pfm_portfolios set cash=cash-? where portfolio_id=?",undef,$amount,$pid);
+    eval { ExecSQL($dbuser, $dbpasswd, "update pfm_portfolios set cash = cash - ? where portfolio_id=?",undef,$amount,$pid);
     };
     return @;
 }
@@ -619,7 +692,7 @@ sub CashBalance {
 }
 
 sub getRecentPrice {
-    my(@symb) = @_;
+    my($symb) = @_;
     my @rows;
     eval{
         @rows = ExecSQL($dbuser, $dbpasswd, "select close from cs339.StocksDaily where symbol = ? and timestamp= (select max(timestamp) from cs339.StocksDaily where symbol = ?)", undef, $symb, $symb);
@@ -636,11 +709,25 @@ sub getRecentPrice {
 
 sub BuyStock {
     my($amount, $symb, $pid) = @_;
+    my $currentTime = time();
     my @rows;
+    my $price = getRecentPrice($symb);
     eval{
-        @rows = ExecSQL($dbuser, $dbpasswd, "insert into pfm_portfolioHoldings(portfolio_id, symbol, num_shares, timestamp, purchase_price) values (?, ?, ?, ?, ?)", undef, $pid, $symb, $amount, $ )
+        @rows = ExecSQL($dbuser, $dbpasswd, "insert into pfm_portfolioHoldings(portfolio_id, symbol, num_shares, timestamp, purchase_price) values (?, ?, ?, ?, ?)", undef, $pid, $symb, $amount, $currentTime, $price)
     };
 
+    return @;
+}
+
+sub SellStock {
+    my($amount, $symb, $pid) = @_;
+    my $currentTime = time();
+    my @rows;
+    my $price = getRecentPrice($symb);
+    eval{
+        @rows = ExecSQL($dbuser, $dbpasswd, "update pfm_portfolioHoldings set num_shares = num_shares - ? where portfolio_id = ? and symbol = ?", undef, $amount, $pid, $symb)
+    };
+    
     return @;
 }
 

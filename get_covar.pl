@@ -51,7 +51,7 @@ for ($i=0;$i<=$#symbols;$i++) {
       
       #otherwise get the covariance
 
-      $sql = "select avg((l.$field1 - $mean_f1)*(r.$field2 - $mean_f2)) from ".GetStockPrefix()."StocksDaily l join ".GetStockPrefix()."StocksDaily r on  l.timestamp=r.timestamp where l.symbol='$s1' and r.symbol='$s2'";
+      $sql = "select avg((l.$field1 - $mean_f1)*(r.$field2 - $mean_f2)) from allStockData l join allStockData r on  l.timestamp=r.timestamp where l.symbol='$s1' and r.symbol='$s2'";
       $sql.= " and l.timestamp>= $from" if $from;
       $sql.= " and l.timestamp<= $to" if $to;
 

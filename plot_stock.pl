@@ -76,13 +76,14 @@ if ($type eq "text") {
 #
   open(GNUPLOT,"| gnuplot") or die "Cannot run gnuplot";
   
+#    print GNUPLOT "set xtics 1000000\n";
   print GNUPLOT "set term png\n";           # we want it to produce a PNG
   print GNUPLOT "set output\n";             # output the PNG to stdout
-  print GNUPLOT "plot '-' using 1:2 with linespoints\n"; # feed it data to plot
+  print GNUPLOT "plot '-' using 1:2 with lines\n"; # feed it data to plot
   foreach my $r (@rows) {
-    print GNUPLOT $r->[0], "\t", $r->[1], "\n";
+    print GNUPLOT ($r->[0]/31557600)+1970, "\t", $r->[1], "\n";
   }
-  print GNUPLOT "e\n"; # end of data
+  print GNUPLOT "e\n";# end of data
 
   #
   # Here gnuplot will print the image content

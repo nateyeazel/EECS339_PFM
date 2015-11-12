@@ -463,6 +463,7 @@ if($action eq "covar-matrix") {
             $symbolsString .= $1;
             $symbolsString .= ' ';
         }
+        print "<h3>Covariance Matrix for $pname Portfolio from $start to $end:</h3>";
         my $results = `./get_covar.pl --field1=close --field2=close --from=$start --to=$end $symbolsString`;
         print "<pre>", $results, "</pre>";
     }
@@ -742,7 +743,6 @@ if ($action eq 'stock'){
     submit(-name=> 'select-dates', -value=>'Select Date Range'),
     end_form;
 
-    print "</p><a href='pfm.pl?act=future&pname=$pname&symbol=$symbol'>Future Predictions</a></p>";
     if (!$run){
     }
     elsif(param('select-dates')){
@@ -757,8 +757,45 @@ if ($action eq 'stock'){
     my $predictionResult = `./shannon_ratchet.pl $symbol $cash $recentPrice`;
     print "<pre>", $predictionResult, "</pre>";
 
+    print "</p><a href='pfm.pl?act=future&pname=$pname&symbol=$symbol'>Predict Future Prices</a></p>";
+    
+    print "</p><a href='pfm.pl?act=beta&pname=$pname&symbol=$symbol'>Calculate Beta Coefficient</a></p>";
+    
     print hr,
         "<p><a href=\"pfm.pl?act=portfolio&pname=$pname\">Return</a></p>";
+}
+
+if($action eq "beta") {
+    my $pname = param("pname");
+    my $pid = PortfolioID($pname);
+    my $symbol = param("symbol");
+    
+    print "<h3>Calculate Beta Coefficient for $symbol</h3>";
+    print "Select date range:", p;
+    print start_form(-name=>'calc-beta', -method =>'POST'),
+    "Start ",
+    "<input name = 'start' type='date'>",
+    p,
+    "End ",
+    "<input name = 'end' type='date'>",
+    hidden(-name=>'run',-default=>['1']),
+    hidden(-name=>'act',-default=>['beta']),
+    hidden(-name=>'pname',-default=>['$pname']),
+    hidden(-name=>'symbol',-default=>['$symbol']),
+    p,
+    submit(-name=> 'select-beta-dates', -value=>'Select Date Range'),
+    end_form;
+    
+    if($run and param('select-beta-dates')){
+        my $start = param('start');
+        my $end = param('end');
+        print "<h3>Beta Coefficient for $symbol vs. Market from $start to $end:</h3>";
+        my $betaCovar = `./get_beta.pl --field1=close --field2=close --from=$start --to=$end $symbol DOW13`;
+        print "<pre>", $betaCovar, "</pre>";
+    }
+    
+    print hr,
+    "<p><a href=\"pfm.pl?act=stock&pname=$pname&symbol=$symbol\">Return</a></p>";
 }
 
 if($action eq 'future'){
@@ -766,9 +803,9 @@ if($action eq 'future'){
     my $pid = PortfolioID($pname);
     my $symbol = param("symbol");
 
-    print "<h2>Predictions for $symbol</h2>";
+    print "<h3>Predict Future Prices for $symbol</h3>";
     print start_form(-name=>'Select days into future', -method =>'POST'),
-    "Number of days: ",
+    "Days ",
     textfield(-name=>'number-days'),
     p,
     hidden(-name=>'run',-default=>['1']),
@@ -776,15 +813,17 @@ if($action eq 'future'){
     hidden(-name=>'pname',-default=>['$pname']),
     hidden(-name=>'symbol',-default=>['$symbol']),
     p,
-    submit(-name=> 'select-days', -value=>'Predict the Future'),
+    submit(-name=> 'select-days', -value=>'Predict Future Prices'),
     end_form;
 
     if(param('select-days')){
         my $timerange = param('number-days');
-        print "<h3> Plot of future performance over $timerange days</h3>";
-        #CHANGE THIS TO YOUR NETID HERE!!!!!!
-        print "<img src='http://murphy.wot.eecs.northwestern.edu/~npy259/pfm/future_plot.pl?timerange=$timerange&symbol=$symbol'>";
+        print p, "Plot of predicted future performance over $timerange days:<br>", p;
+        print "<img src='http://murphy.wot.eecs.northwestern.edu/~ndh242/pfm/future_plot.pl?timerange=$timerange&symbol=$symbol'>";
     }
+    
+    print hr,
+    "<p><a href=\"pfm.pl?act=stock&pname=$pname&symbol=$symbol\">Return</a></p>";
 }
 
 sub RecordPrice{

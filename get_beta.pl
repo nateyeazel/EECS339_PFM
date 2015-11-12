@@ -17,7 +17,6 @@ $field2='close';
 	     "to=s"     => \$to,
              "simple"   => \$simple,
 	     "corrcoeff"=>\$docorrcoeff);
-
 if (defined $from) { $from=parsedate($from);}
 if (defined $to) { $to=parsedate($to); }
 
@@ -30,9 +29,8 @@ $#ARGV>=1 or die $usage;
 
 
 for ($i=0;$i<=$#symbols;$i++) {
-  $s1=$symbols[$i];
-  for ($j=$i; $j<=$#symbols; $j++) {
-    $s2=$symbols[$j];
+    $s1=$symbols[$i];
+    $s2='DOW13';
     
 #first, get means and vars for the individual columns that match
     
@@ -58,41 +56,13 @@ for ($i=0;$i<=$#symbols;$i++) {
       ($covar{$s1}{$s2}) = ExecStockSQL("ROW",$sql);
 
 #and the correlationcoeff
-
-      $corrcoeff{$s1}{$s2} = $covar{$s1}{$s2}/($std_f1*$std_f2);
+        if ($i == 0) {
+          print "Coefficient of Variation:\t";
+          print $std_f1/$mean_f1;
+        }
     }
-  }
 }
 
-if ($simple && $#symbols==1) {
-  $s1=$symbols[0];
-  $s2=$symbols[1];
-  if ($docorrcoeff) {
-    print $corrcoeff{$s1}{$s2} eq "NODAT" ? "NODAT" : sprintf('%3.2f',$corrcoeff{$s1}{$s2});
-  } else {
-    print $covar{$s1}{$s2} eq "NODAT" ? "NODAT" : sprintf('%3.2f',$covar{$s1}{$s2});
-  }
-  print "\n";
-} else {
-  print join("\t","-----",@symbols),"\n";
-  
-  for ($i=0;$i<=$#symbols;$i++) {
-    $s1=$symbols[$i];
-    print $s1;
-    for ($j=0; $j<=$#symbols;$j++) {
-      if ($i>$j) {
-        print "\t.";
-      } else {
-        $s2=$symbols[$j];
-	if ($docorrcoeff) {
-	  print "\t", $corrcoeff{$s1}{$s2} eq "NODAT" ? "NODAT" : sprintf('%3.2f',$corrcoeff{$s1}{$s2});
-	} else {
-	  print "\t", $covar{$s1}{$s2} eq "NODAT" ? "NODAT" : sprintf('%3.2f',$covar{$s1}{$s2});
-	}
-      }
-    }
-    print "\n";
-  }
-}
-
+print "\nBeta Coefficient:\t";
+print ($covar{$symbols[0]}{$symbols[1]})/($covar{$symbols[1]}{$symbols[1]});
 

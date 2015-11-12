@@ -416,7 +416,7 @@ if ($action eq "portfolio") {
             print $str;
         }
     }
-    
+
     my $totalvalue = TotalValue($pid);
     my $totalcash = CashBalance("number",$pid);
     if ($totalvalue <= 0) {
@@ -466,7 +466,7 @@ if($action eq "covar-matrix") {
         my $results = `./get_covar.pl --field1=close --field2=close --from=$start --to=$end $symbolsString`;
         print "<pre>", $results, "</pre>";
     }
-    
+
     print hr,
     "<p><a href=\"pfm.pl?act=portfolio&pname=$pname\">Return</a></p>";
 }
@@ -545,7 +545,7 @@ if($action eq "buy-sell"){
             print "$str";
         }
         print p;
-        
+
         # Cash Balance
         my $totalcash = CashBalance("number",$pid);
         print "<table id=\"cash-balance\" border=\"\"><tbody><tr><td><b>Cash Balance</b></td><td>$totalcash</td></tr></tbody></table>";
@@ -577,7 +577,7 @@ if($action eq "buy-sell"){
                 print "$str";
             }
             print p;
-            
+
             # Cash Balance
             my $totalcash = CashBalance("number",$pid);
             print "<table id=\"cash-balance\" border=\"\"><tbody><tr><td><b>Cash Balance</b></td><td>$totalcash</td></tr></tbody></table>";
@@ -590,7 +590,7 @@ if($action eq "buy-sell"){
                 print "$str";
             }
             print p;
-            
+
             # Cash Balance
             my $totalcash = CashBalance("number",$pid);
             print "<table id=\"cash-balance\" border=\"\"><tbody><tr><td><b>Cash Balance</b></td><td>$totalcash</td></tr></tbody></table>";
@@ -605,7 +605,7 @@ if($action eq "buy-sell"){
                 print "$str";
             }
             print p;
-            
+
             # Cash Balance
             my $totalcash = CashBalance("number",$pid);
             print "<table id=\"cash-balance\" border=\"\"><tbody><tr><td><b>Cash Balance</b></td><td>$totalcash</td></tr></tbody></table>";
@@ -630,7 +630,7 @@ if($action eq "buy-sell"){
                 print "$str";
             }
             print p;
-            
+
             # Cash Balance
             my $totalcash = CashBalance("number",$pid);
             print "<table id=\"cash-balance\" border=\"\"><tbody><tr><td><b>Cash Balance</b></td><td>$totalcash</td></tr></tbody></table>";
@@ -644,7 +644,7 @@ if($action eq "buy-sell"){
                 print "$str";
             }
             print p;
-            
+
             # Cash Balance
             my $totalcash = CashBalance("number",$pid);
             print "<table id=\"cash-balance\" border=\"\"><tbody><tr><td><b>Cash Balance</b></td><td>$totalcash</td></tr></tbody></table>";
@@ -710,7 +710,7 @@ if ($action eq "record-price"){
             print "Record added successfully.";
         }
     }
-    
+
     print hr,
         "<p><a href=\"pfm.pl?act=portfolio&pname=$pname\">Return</a></p>";
 }
@@ -723,7 +723,7 @@ if ($action eq 'stock'){
     my $recentPrice = getRecentPrice($symbol);
     my $format = param("format");
     $format = "table" if !defined($format);
-    
+
     print "<h3>Stock Information for $symbol</h3>";
     print "<img src='http://murphy.wot.eecs.northwestern.edu/~ndh242/pfm/plot_stock.pl?type=plot&symbol=$symbol'>";
     print "<h3>Past Data</h3>";
@@ -741,19 +741,17 @@ if ($action eq 'stock'){
     p,
     submit(-name=> 'select-dates', -value=>'Select Date Range'),
     end_form;
-    
+
+    print "</p><a href='pfm.pl?act=future&pname=$pname&symbol=$symbol'>Future Predictions</a></p>";
     if (!$run){
     }
     elsif(param('select-dates')){
       my $start = param('start');
       my $end = param('end');
       my $output = `./get_data.pl --close --from="$start" --to="$end" AAPL`;
-      #my $image = `./get_data.pl --close --from="$start" --to="$end" --plot AAPL`;
-      #print "<pre>", $image, "</pre>";
-      #print "<img src='http:/murphy.wot.eecs.northwestern.edu/~ndh242/pfm/plot_stock.pl&type=plot&symbol=AAPL'>"; 
       print "Timestamp &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Close Price";
-      print "<pre>", $output, "</pre>";  
-    }  
+      print "<pre>", $output, "</pre>";
+    }
 
     print "<h3>Automated Trading Strategy Predictions for $symbol</h3>";
     my $predictionResult = `./shannon_ratchet.pl $symbol $cash $recentPrice`;
@@ -761,6 +759,32 @@ if ($action eq 'stock'){
 
     print hr,
         "<p><a href=\"pfm.pl?act=portfolio&pname=$pname\">Return</a></p>";
+}
+
+if($action eq 'future'){
+    my $pname = param("pname");
+    my $pid = PortfolioID($pname);
+    my $symbol = param("symbol");
+
+    print "<h2>Predictions for $symbol</h2>";
+    print start_form(-name=>'Select days into future', -method =>'POST'),
+    "Number of days: ",
+    textfield(-name=>'number-days'),
+    p,
+    hidden(-name=>'run',-default=>['1']),
+    hidden(-name=>'act',-default=>['stock']),
+    hidden(-name=>'pname',-default=>['$pname']),
+    hidden(-name=>'symbol',-default=>['$symbol']),
+    p,
+    submit(-name=> 'select-days', -value=>'Predict the Future'),
+    end_form;
+
+    if(param('select-days')){
+        my $timerange = param('number-days');
+        print "<h3> Plot of future performance over $timerange days</h3>";
+        #CHANGE THIS TO YOUR NETID HERE!!!!!!
+        print "<img src='http://murphy.wot.eecs.northwestern.edu/~npy259/pfm/future_plot.pl?timerange=$timerange&symbol=$symbol'>";
+    }
 }
 
 sub RecordPrice{
@@ -969,12 +993,12 @@ sub BuyStock {
             @rows = ExecSQL($dbuser, $dbpasswd, "update pfm_portfolioHoldings set num_shares = num_shares + ? where portfolio_id = ? and symbol = ?", undef, $amount, $pid, $symb)
         };
     } else {
-        
+
         eval{
             @rows = ExecSQL($dbuser, $dbpasswd, "insert into pfm_portfolioHoldings(portfolio_id, symbol, num_shares, timestamp, purchase_price) values (?, ?, ?, ?, ?)", undef, $pid, $symb, $amount, $currentTime, $price)
         };
     }
-    
+
     return @;
 }
 
@@ -1345,7 +1369,7 @@ BEGIN {
         $ENV{PORTF_DB}="cs339";
         $ENV{PORTF_DBUSER}="ndh242";
         $ENV{PORTF_DBPASS}="zo06aFIky";
-        $ENV{PATH} = $ENV{PATH}.":."; 
+        $ENV{PATH} = $ENV{PATH}.":.";
         exec 'env',cwd().'/'.$0,@ARGV;
     }
 }
